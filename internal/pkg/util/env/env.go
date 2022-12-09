@@ -31,14 +31,23 @@ const (
 
 	// defaultLocalKeyDirName represents the default local key storage folder name
 	defaultLocalKeyDirName = "keys"
+
+	// Legacy singularity prefix
+	LegacySingularityPrefix = "SINGULARITY_"
+
+	// Legacy singularity env prefix
+	LegacySingularityEnvPrefix = "SINGULARITYENV_"
+
+	// Deprecated forward template
+	DeprecatedForwardFormat = "DEPRECATED USAGE: Forwarding %s as environment variable will not be supported in the future, use %s instead"
 )
 
 // ApptainerPrefixes the following prefixes are for settings looked at by Apptainer command
-var ApptainerPrefixes = []string{ApptainerPrefix, "SINGULARITY_"}
+var ApptainerPrefixes = []string{ApptainerPrefix, LegacySingularityPrefix}
 
 // ApptainerEnvPrefixes defines the environment variable prefixes for passthru
 // to container
-var ApptainerEnvPrefixes = []string{ApptainerEnvPrefix, "SINGULARITYENV_"}
+var ApptainerEnvPrefixes = []string{ApptainerEnvPrefix, LegacySingularityEnvPrefix}
 
 // SetFromList sets environment variables from environ argument list.
 func SetFromList(environ []string) error {
@@ -73,6 +82,19 @@ func GetenvLegacy(key, legacyKey string) string {
 	}
 
 	return val
+}
+
+// WarnLegecyEnvUsage warns when legacy, i.e., SINGULARITYENV_* envs are used
+func WarnLegecyEnvUsage(legacyKey, newKey, format string) {
+	legacyEnv := LegacySingularityEnvPrefix + legacyKey
+	newEnv := ApptainerEnvPrefix + newKey
+	_, oldExist := os.LookupEnv(legacyEnv)
+	if oldExist {
+		_, newExist := os.LookupEnv(newEnv)
+		if !newExist {
+			sylog.Warningf(format, legacyEnv, newEnv)
+		}
+	}
 }
 
 // TrimApptainerKey returns the key without APPTAINER_ prefix.
