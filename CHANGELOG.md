@@ -7,6 +7,8 @@ For older changes see the [archived Singularity change log](https://github.com/a
 
 ## Changes Since Last Release
 
+- Add helpful error message for build `--remote` option.
+
 ### Changed defaults / behaviours
 
 - Make `PS1` envrionment variable changeable via `%environment` section on
