@@ -37,6 +37,11 @@ const (
 
 	// Legacy singularity env prefix
 	LegacySingularityEnvPrefix = "SINGULARITYENV_"
+
+	// defaultGocryptfsCipherPath represents the default gocryptfs cipher path
+	defaultGocryptfsCipherPath = "GocryptfsCipher"
+	// defaultGocryptPlainPath represents the default gocryptfs plain folder path
+	defaultGocryptfsPlainPath = "GocryptfsPlain"
 )
 
 // ApptainerPrefixes the following prefixes are for settings looked at by Apptainer command
@@ -92,4 +97,12 @@ func DefaultLocalKeyDirPath() string {
 		return dir
 	}
 	return filepath.Join(syfs.ConfigDir(), defaultLocalKeyDirName)
+}
+
+func DefaultGocryptfsCipherPath() string {
+	return filepath.Join(syfs.ConfigDir(), defaultGocryptfsCipherPath)
+}
+
+func DefaultGocryptfsPlainPath() string {
+	return filepath.Join(syfs.ConfigDir(), defaultGocryptfsPlainPath)
 }

@@ -180,6 +180,7 @@ func newBuild(defs []types.Definition, conf Config) (*Build, error) {
 			}
 		}
 
+		s.b.Opts.Gocryptfs = true
 		b.stages = append(b.stages, s)
 	}
 

@@ -82,6 +82,8 @@ type Options struct {
 	// To warn when the above is needed, we need to know if the target of this
 	// bundle will be a sandbox
 	SandboxTarget bool
+	// whether using gocryptfs external program
+	Gocryptfs bool
 }
 
 // NewEncryptedBundle creates an Encrypted Bundle environment.
@@ -234,6 +236,7 @@ func newBundle(parentPath, tempDir string, keyInfo *cryptkey.KeyInfo) (*Bundle, 
 		JSONObjects: make(map[string][]byte),
 		Opts: Options{
 			EncryptionKeyInfo: keyInfo,
+			Gocryptfs:         true,
 		},
 	}, nil
 }

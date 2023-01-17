@@ -87,6 +87,9 @@ func createSIF(path string, b *types.Bundle, squashfile string, encOpts *encrypt
 	if encOpts != nil {
 		fs = sif.FsEncryptedSquashfs
 	}
+	if encOpts != nil && b.Opts.Gocryptfs {
+		fs = sif.FsGocryptfsSquashfs
+	}
 
 	// data we need to create a system partition descriptor
 	parinput, err := sif.NewDescriptorInput(sif.DataPartition, fp,
@@ -153,10 +156,7 @@ func createSIF(path string, b *types.Bundle, squashfile string, encOpts *encrypt
 
 // Assemble creates a SIF image from a Bundle.
 func (a *SIFAssembler) Assemble(b *types.Bundle, path string) error {
-	sylog.Infof("Creating SIF file...")
-
-	s := packer.NewSquashfs()
-	s.MksquashfsPath = a.MksquashfsPath
+	sylog.Infof("Creating SIF file... b.Opts.Gocryptfs: %t", b.Opts.Gocryptfs)
 
 	f, err := os.CreateTemp(b.TmpDir, "squashfs-")
 	if err != nil {
@@ -189,38 +189,65 @@ func (a *SIFAssembler) Assemble(b *types.Bundle, path string) error {
 	}
 	sylog.Verbosef("Set SIF container architecture to %s", arch)
 
-	if err := s.Create([]string{b.RootfsPath}, fsPath, flags); err != nil {
-		return fmt.Errorf("while creating squashfs: %v", err)
-	}
-
 	var encOpts *encryptionOptions
+	if b.Opts.Gocryptfs {
+		sylog.Debugf("start employing the gocryptfs encryption")
+		g := packer.NewGocryptfs()
+		g.MksquashfsPath = a.MksquashfsPath
 
-	if b.Opts.EncryptionKeyInfo != nil {
-		plaintext, err := cryptkey.NewPlaintextKey(*b.Opts.EncryptionKeyInfo)
+		if err := g.Create([]string{b.RootfsPath}, fsPath, flags); err != nil {
+			return fmt.Errorf("while creating gocryptfs encrypted squashfs: %v", err)
+		}
+
+		encryptionKeyInfo := &cryptkey.KeyInfo{
+			Format:   cryptkey.Passphrase,
+			Material: "12345",
+			Path:     "",
+		}
+
+		plaintext, err := cryptkey.NewPlaintextKey(*encryptionKeyInfo)
 		if err != nil {
 			return fmt.Errorf("unable to obtain encryption key: %+v", err)
 		}
 
-		// A dm-crypt device needs to be created with squashfs
-		cryptDev := &crypt.Device{}
-
-		// TODO (schebro): Fix #3876
-		// Detach the following code from the squashfs creation. SIF can be
-		// created first and encrypted after. This gives the flexibility to
-		// encrypt an existing SIF
-		loopPath, err := cryptDev.EncryptFilesystem(fsPath, plaintext)
-		if err != nil {
-			return fmt.Errorf("unable to encrypt filesystem at %s: %+v", fsPath, err)
-		}
-		defer os.Remove(loopPath)
-
-		fsPath = loopPath
-
 		encOpts = &encryptionOptions{
-			keyInfo:   *b.Opts.EncryptionKeyInfo,
+			keyInfo:   *encryptionKeyInfo,
 			plaintext: plaintext,
 		}
+	} else {
+		s := packer.NewSquashfs()
+		s.MksquashfsPath = a.MksquashfsPath
 
+		if err := s.Create([]string{b.RootfsPath}, fsPath, flags); err != nil {
+			return fmt.Errorf("while creating squashfs: %v", err)
+		}
+
+		if b.Opts.EncryptionKeyInfo != nil {
+			plaintext, err := cryptkey.NewPlaintextKey(*b.Opts.EncryptionKeyInfo)
+			if err != nil {
+				return fmt.Errorf("unable to obtain encryption key: %+v", err)
+			}
+
+			// A dm-crypt device needs to be created with squashfs
+			cryptDev := &crypt.Device{}
+
+			// TODO (schebro): Fix #3876
+			// Detach the following code from the squashfs creation. SIF can be
+			// created first and encrypted after. This gives the flexibility to
+			// encrypt an existing SIF
+			loopPath, err := cryptDev.EncryptFilesystem(fsPath, plaintext)
+			if err != nil {
+				return fmt.Errorf("unable to encrypt filesystem at %s: %+v", fsPath, err)
+			}
+			defer os.Remove(loopPath)
+
+			fsPath = loopPath
+
+			encOpts = &encryptionOptions{
+				keyInfo:   *b.Opts.EncryptionKeyInfo,
+				plaintext: plaintext,
+			}
+		}
 	}
 
 	err = createSIF(path, b, fsPath, encOpts, arch)

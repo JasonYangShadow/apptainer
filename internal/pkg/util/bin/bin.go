@@ -65,6 +65,8 @@ func FindBin(name string) (path string, err error) {
 		"rpmkeys",
 		"squashfuse",
 		"squashfuse_ll",
+		"gocryptfs",
+		"fusermount",
 		"SUSEConnect",
 		"unsquashfs",
 		"yum",

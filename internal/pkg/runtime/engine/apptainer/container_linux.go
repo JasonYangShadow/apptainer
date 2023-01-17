@@ -910,6 +910,9 @@ func (c *container) addRootfsMount(system *mount.System) error {
 	case image.ENCRYPTSQUASHFS:
 		mountType = "encryptfs"
 		key = c.engine.EngineConfig.GetEncryptionKey()
+	case image.GOCRYPTSQUASHFS:
+		mountType = "gocryptfs"
+		key = c.engine.EngineConfig.GetEncryptionKey()
 	case image.SANDBOX:
 		sylog.Debugf("Mounting directory rootfs: %v\n", rootfs)
 		flags |= syscall.MS_BIND

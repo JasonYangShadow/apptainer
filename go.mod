@@ -105,9 +105,11 @@ require (
 	github.com/gorilla/handlers v1.5.1 // indirect
 	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/gosimple/unidecode v1.0.1 // indirect
+	github.com/hanwen/go-fuse/v2 v2.1.1-0.20211219085202-934a183ed914 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/inconshreveable/mousetrap v1.0.1 // indirect
+	github.com/jacobsa/crypto v0.0.0-20190317225127-9f44e2d11115 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0 // indirect
 	github.com/klauspost/compress v1.15.11 // indirect
@@ -131,9 +133,12 @@ require (
 	github.com/prometheus/client_model v0.3.0 // indirect
 	github.com/prometheus/common v0.37.0 // indirect
 	github.com/prometheus/procfs v0.8.0 // indirect
+	github.com/rfjakob/eme v1.1.2 // indirect
+	github.com/rfjakob/gocryptfs/v2 v2.3.0 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/rootless-containers/proto v0.1.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
+	github.com/sabhiram/go-gitignore v0.0.0-20201211210132-54b8a0bf510f // indirect
 	github.com/safchain/ethtool v0.0.0-20210803160452-9aa261dae9b1 // indirect
 	github.com/secure-systems-lab/go-securesystemslib v0.4.0 // indirect
 	github.com/sergi/go-diff v1.2.0 // indirect

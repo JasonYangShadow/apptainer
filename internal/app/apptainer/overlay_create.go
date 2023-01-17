@@ -143,7 +143,7 @@ func OverlayCreate(size int, imgPath string, overlaySparse bool, isFakeroot bool
 			sysPart, err := img.GetRootFsPartition()
 			if err != nil {
 				return fmt.Errorf("while getting root FS partition: %s", err)
-			} else if sysPart.Type == image.ENCRYPTSQUASHFS {
+			} else if sysPart.Type == image.ENCRYPTSQUASHFS || sysPart.Type == image.GOCRYPTSQUASHFS {
 				return fmt.Errorf("encrypted root FS partition in %s: could not add writable overlay", imgPath)
 			}
 

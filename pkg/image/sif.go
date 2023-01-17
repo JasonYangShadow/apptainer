@@ -48,6 +48,8 @@ func checkPartitionType(img *Image, fstype sif.FSType, offset int64) (uint32, er
 		return EXT3, nil
 	case sif.FsEncryptedSquashfs:
 		return ENCRYPTSQUASHFS, nil
+	case sif.FsGocryptfsSquashfs:
+		return GOCRYPTSQUASHFS, nil
 	case sif.FsRaw:
 		return RAW, nil
 	}
