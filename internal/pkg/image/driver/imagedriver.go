@@ -175,6 +175,7 @@ func (d *fuseappsDriver) Mount(params *image.MountParams, mfunc image.MountFunc)
 			// this will be passed as the first ExtraFile below, always fd 3
 			srcPath = "/proc/self/fd/3"
 		}
+		sylog.Debugf("squashfs mounts: %s, srcPath: %s, params: %+v", cmdArgs, srcPath, params)
 		cmdArgs = append(cmdArgs, f.cmdPath, "-f", "-o", optsStr, srcPath, params.Target)
 		cmd = exec.Command(cmdArgs[0], cmdArgs[1:]...)
 

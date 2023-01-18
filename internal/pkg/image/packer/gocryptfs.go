@@ -56,6 +56,12 @@ func (g *Gocryptfs) init() error {
 		if err := cmd.Run(); err != nil {
 			return err
 		}
+
+		cmd = exec.Command(g.gocryptfsPath, env.DefaultGocryptfsCipherPath(), env.DefaultGocryptfsPlainPath())
+		cmd.Stdin = strings.NewReader(password)
+		if err := cmd.Run(); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -67,19 +73,6 @@ func (g *Gocryptfs) Create(src []string, dest string, opts []string) error {
 	if err != nil {
 		return err
 	}
-
-	sylog.Debugf("gocryptfs starts encrypting plain path")
-	cmd := exec.Command(g.gocryptfsPath, env.DefaultGocryptfsCipherPath(), env.DefaultGocryptfsPlainPath())
-	cmd.Stdin = strings.NewReader(password)
-	if err := cmd.Run(); err != nil {
-		return err
-	}
-	defer func() {
-		err := exec.Command(g.fusermountPath, "-u", env.DefaultGocryptfsPlainPath()).Run()
-		if err != nil {
-			sylog.Fatalf("could not unmount the gocryptfs plain folder: %s using fusermount, err: %s", env.DefaultGocryptfsPlainPath(), err.Error())
-		}
-	}()
 
 	// change the dest path
 	filename := filepath.Base(dest)

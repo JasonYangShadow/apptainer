@@ -22,6 +22,7 @@ import (
 	"github.com/apptainer/apptainer/internal/pkg/buildcfg"
 	"github.com/apptainer/apptainer/internal/pkg/cgroups"
 	"github.com/apptainer/apptainer/internal/pkg/image/driver"
+	"github.com/apptainer/apptainer/internal/pkg/image/unpacker"
 	"github.com/apptainer/apptainer/internal/pkg/plugin"
 	"github.com/apptainer/apptainer/internal/pkg/runtime/engine/apptainer/rpc/client"
 	"github.com/apptainer/apptainer/internal/pkg/util/fs"
@@ -799,6 +800,19 @@ func (c *container) mountImage(mnt *mount.Point) error {
 		}
 	}
 
+	if mountType == "gocryptfs" {
+		sylog.Debugf("mountType is gocryptfs, needing decryption")
+		g := unpacker.NewGocryptfs()
+		newSource, err := g.DecryptOffset(mnt.Source, offset, sizelimit)
+		if err != nil {
+			return err
+		}
+
+		mnt.Source = newSource
+		offset = 0
+		mountType = "squashfs"
+	}
+
 	if imageDriver != nil && imageDriver.Features()&image.ImageFeature != 0 {
 		params := &image.MountParams{
 			Source:     mnt.Source,
@@ -810,6 +824,7 @@ func (c *container) mountImage(mnt *mount.Point) error {
 			Key:        key,
 			FSOptions:  opts,
 		}
+		sylog.Debugf("mount params: %+v", params)
 		return imageDriver.Mount(params, c.rpcOps.Mount)
 	}
 
