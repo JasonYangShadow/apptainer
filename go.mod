@@ -59,6 +59,7 @@ require (
 
 require (
 	github.com/docker/distribution v2.8.1+incompatible
+	github.com/rfjakob/gocryptfs/v2 v2.3.0
 	github.com/sirupsen/logrus v1.9.0
 )
 
@@ -71,6 +72,7 @@ require (
 	github.com/VividCortex/ewma v1.2.0 // indirect
 	github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d // indirect
 	github.com/alexflint/go-filemutex v1.2.0 // indirect
+	github.com/aperturerobotics/jacobsa-crypto v1.0.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver v3.5.1+incompatible // indirect
 	github.com/bugsnag/bugsnag-go v1.5.1 // indirect
@@ -105,6 +107,7 @@ require (
 	github.com/gorilla/handlers v1.5.1 // indirect
 	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/gosimple/unidecode v1.0.1 // indirect
+	github.com/hanwen/go-fuse/v2 v2.1.1-0.20221117175120-915cf5413cde // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/inconshreveable/mousetrap v1.0.1 // indirect
@@ -131,9 +134,11 @@ require (
 	github.com/prometheus/client_model v0.3.0 // indirect
 	github.com/prometheus/common v0.37.0 // indirect
 	github.com/prometheus/procfs v0.8.0 // indirect
+	github.com/rfjakob/eme v1.1.2 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/rootless-containers/proto v0.1.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
+	github.com/sabhiram/go-gitignore v0.0.0-20201211210132-54b8a0bf510f // indirect
 	github.com/safchain/ethtool v0.2.0 // indirect
 	github.com/secure-systems-lab/go-securesystemslib v0.4.0 // indirect
 	github.com/sergi/go-diff v1.2.0 // indirect
@@ -169,4 +174,8 @@ require (
 // Temporarily force an image-spec that has the main branch commits not in 1.0.2 which is being brought in by oras-go
 // These commits are needed by containers/image/v5 and the replace is necessary given how image-spec v1.0.2 has been
 // tagged / rebased.
-replace github.com/opencontainers/image-spec => github.com/opencontainers/image-spec v1.0.2-0.20211117181255-693428a734f5
+replace (
+	github.com/apptainer/sif/v2 v2.9.0 => ../sif
+	github.com/opencontainers/image-spec => github.com/opencontainers/image-spec v1.0.2-0.20211117181255-693428a734f5
+	github.com/rfjakob/gocryptfs/v2 v2.3.0 => ../gocryptfs
+)
