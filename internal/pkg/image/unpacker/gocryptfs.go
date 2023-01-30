@@ -19,8 +19,7 @@ const (
 )
 
 type Gocryptfs struct {
-	gocryptfsPath  string
-	fusermountPath string
+	gocryptfsPath string
 	*Squashfs
 }
 
@@ -28,7 +27,6 @@ func NewGocryptfs() *Gocryptfs {
 	g := &Gocryptfs{}
 	g.gocryptfsPath, _ = bin.FindBin("gocryptfs")
 	g.Squashfs = NewSquashfs()
-	g.fusermountPath, _ = bin.FindBin("fusermount")
 	return g
 }
 

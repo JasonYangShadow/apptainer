@@ -2,6 +2,7 @@ package packer
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -17,15 +18,13 @@ const (
 )
 
 type Gocryptfs struct {
-	gocryptfsPath  string
-	fusermountPath string
+	gocryptfsPath string
 	Squashfs
 }
 
 func NewGocryptfs() *Gocryptfs {
 	g := &Gocryptfs{}
 	g.gocryptfsPath, _ = bin.FindBin("gocryptfs")
-	g.fusermountPath, _ = bin.FindBin("fusermount")
 	return g
 }
 
@@ -87,5 +86,8 @@ func (g *Gocryptfs) Create(src []string, dest string, opts []string) error {
 
 	// we need to replace the squashed archive with encrypted one
 	sylog.Debugf("gocryptfs returns and rename the target, src: %s, dest: %s", encrytedDest, dest)
+	if _, err := os.Stat(encrytedDest); err != nil && os.IsNotExist(err) {
+		return fmt.Errorf("could not find encrypted squash file: %s", encrytedDest)
+	}
 	return os.Rename(encrytedDest, dest)
 }
