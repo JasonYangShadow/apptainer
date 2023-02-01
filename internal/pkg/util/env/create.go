@@ -103,7 +103,16 @@ func warnDeprecatedEnvUsage(hostEnvs []string) {
 				if key != "" {
 					legacyEnv := LegacySingularityEnvPrefix + key
 					newEnv := ApptainerEnvPrefix + key
-					sylog.Infof("Environment variable %v is set, but %v is preferred", legacyEnv, newEnv)
+					skip := false
+					for _, e := range hostEnvs {
+						if strings.HasPrefix(e, newEnv) {
+							skip = true
+							break
+						}
+					}
+					if !skip {
+						sylog.Infof("Environment variable %v is set, but %v is preferred", legacyEnv, newEnv)
+					}
 				}
 			}
 		}
