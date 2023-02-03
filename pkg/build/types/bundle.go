@@ -236,7 +236,6 @@ func newBundle(parentPath, tempDir string, keyInfo *cryptkey.KeyInfo) (*Bundle, 
 		JSONObjects: make(map[string][]byte),
 		Opts: Options{
 			EncryptionKeyInfo: keyInfo,
-			Gocryptfs:         true,
 		},
 	}, nil
 }

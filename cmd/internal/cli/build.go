@@ -28,29 +28,30 @@ import (
 )
 
 var buildArgs struct {
-	sections          []string
-	bindPaths         []string
-	mounts            []string
-	libraryURL        string
-	keyServerURL      string
-	webURL            string
-	encrypt           bool
-	fakeroot          bool
-	fixPerms          bool
-	isJSON            bool
-	noCleanUp         bool
-	noTest            bool
-	sandbox           bool
-	update            bool
-	nvidia            bool
-	nvccli            bool
-	rocm              bool
-	writableTmpfs     bool // For test section only
-	userns            bool // Enable user namespaces
-	ignoreSubuid      bool // Ignore /etc/subuid entries (hidden)
-	ignoreFakerootCmd bool // Ignore fakeroot command (hidden)
-	ignoreUserns      bool // Ignore user namespace(hidden)
-	remote            bool // Remote flag(hidden, only for helpful error message)
+	sections            []string
+	bindPaths           []string
+	mounts              []string
+	libraryURL          string
+	keyServerURL        string
+	webURL              string
+	encrypt             bool
+	fakeroot            bool
+	fixPerms            bool
+	isJSON              bool
+	noCleanUp           bool
+	noTest              bool
+	sandbox             bool
+	update              bool
+	nvidia              bool
+	nvccli              bool
+	rocm                bool
+	writableTmpfs       bool // For test section only
+	userns              bool // Enable user namespaces
+	ignoreSubuid        bool // Ignore /etc/subuid entries (hidden)
+	ignoreFakerootCmd   bool // Ignore fakeroot command (hidden)
+	ignoreUserns        bool // Ignore user namespace(hidden)
+	remote              bool // Remote flag(hidden, only for helpful error message)
+	unprivilegedEncrypt bool // Using gocryptfs to encrypt the image without prvileged permission
 }
 
 // -s|--sandbox
@@ -285,6 +286,16 @@ var buildRemoteFlag = cmdline.Flag{
 	Hidden:       true,
 }
 
+var unprivilegedEncryptFlag = cmdline.Flag{
+	ID:           "unprivilegedEncryptionFlag",
+	Value:        &buildArgs.unprivilegedEncrypt,
+	DefaultValue: false,
+	Name:         "unprivilegedEncrypt",
+	Usage:        "--unprivilegedEncrypt enables unprivileged encryption build",
+	EnvKeys:      []string{},
+	Hidden:       false,
+}
+
 func init() {
 	addCmdInit(func(cmdManager *cmdline.CommandManager) {
 		cmdManager.RegisterCmd(buildCmd)
@@ -324,6 +335,7 @@ func init() {
 		cmdManager.RegisterFlagForCmd(&buildIgnoreFakerootCommand, buildCmd)
 		cmdManager.RegisterFlagForCmd(&buildIgnoreUsernsFlag, buildCmd)
 		cmdManager.RegisterFlagForCmd(&buildRemoteFlag, buildCmd)
+		cmdManager.RegisterFlagForCmd(&unprivilegedEncryptFlag, buildCmd)
 	})
 }
 

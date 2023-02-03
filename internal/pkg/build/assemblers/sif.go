@@ -199,20 +199,9 @@ func (a *SIFAssembler) Assemble(b *types.Bundle, path string) error {
 			return fmt.Errorf("while creating gocryptfs encrypted squashfs: %v", err)
 		}
 
-		encryptionKeyInfo := &cryptkey.KeyInfo{
-			Format:   cryptkey.Passphrase,
-			Material: "12345",
-			Path:     "",
-		}
-
-		plaintext, err := cryptkey.NewPlaintextKey(*encryptionKeyInfo)
-		if err != nil {
-			return fmt.Errorf("unable to obtain encryption key: %+v", err)
-		}
-
 		encOpts = &encryptionOptions{
-			keyInfo:   *encryptionKeyInfo,
-			plaintext: plaintext,
+			keyInfo:   *b.Opts.EncryptionKeyInfo,
+			plaintext: g.Conf,
 		}
 	} else {
 		s := packer.NewSquashfs()
