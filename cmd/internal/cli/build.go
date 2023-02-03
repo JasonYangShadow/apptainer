@@ -28,30 +28,30 @@ import (
 )
 
 var buildArgs struct {
-	sections            []string
-	bindPaths           []string
-	mounts              []string
-	libraryURL          string
-	keyServerURL        string
-	webURL              string
-	encrypt             bool
-	fakeroot            bool
-	fixPerms            bool
-	isJSON              bool
-	noCleanUp           bool
-	noTest              bool
-	sandbox             bool
-	update              bool
-	nvidia              bool
-	nvccli              bool
-	rocm                bool
-	writableTmpfs       bool // For test section only
-	userns              bool // Enable user namespaces
-	ignoreSubuid        bool // Ignore /etc/subuid entries (hidden)
-	ignoreFakerootCmd   bool // Ignore fakeroot command (hidden)
-	ignoreUserns        bool // Ignore user namespace(hidden)
-	remote              bool // Remote flag(hidden, only for helpful error message)
-	unprivilegedEncrypt bool // Using gocryptfs to encrypt the image without prvileged permission
+	sections          []string
+	bindPaths         []string
+	mounts            []string
+	libraryURL        string
+	keyServerURL      string
+	webURL            string
+	encrypt           bool
+	fakeroot          bool
+	fixPerms          bool
+	isJSON            bool
+	noCleanUp         bool
+	noTest            bool
+	sandbox           bool
+	update            bool
+	nvidia            bool
+	nvccli            bool
+	rocm              bool
+	writableTmpfs     bool // For test section only
+	userns            bool // Enable user namespaces
+	ignoreSubuid      bool // Ignore /etc/subuid entries (hidden)
+	ignoreFakerootCmd bool // Ignore fakeroot command (hidden)
+	ignoreUserns      bool // Ignore user namespace(hidden)
+	remote            bool // Remote flag(hidden, only for helpful error message)
+	unprivilege       bool // Using gocryptfs to encrypt the image without privilege
 }
 
 // -s|--sandbox
@@ -287,11 +287,11 @@ var buildRemoteFlag = cmdline.Flag{
 }
 
 var unprivilegedEncryptFlag = cmdline.Flag{
-	ID:           "unprivilegedEncryptionFlag",
-	Value:        &buildArgs.unprivilegedEncrypt,
+	ID:           "unprivilege",
+	Value:        &buildArgs.unprivilege,
 	DefaultValue: false,
-	Name:         "unprivilegedEncrypt",
-	Usage:        "--unprivilegedEncrypt enables unprivileged encryption build",
+	Name:         "unprivilege",
+	Usage:        "--unprivilege enables unprivileged encryption build",
 	EnvKeys:      []string{},
 	Hidden:       false,
 }
