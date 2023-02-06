@@ -122,6 +122,9 @@ func newBuild(defs []types.Definition, conf Config) (*Build, error) {
 		var s stage
 		if conf.Opts.EncryptionKeyInfo != nil {
 			s.b, err = types.NewEncryptedBundle(parentPath, conf.Opts.TmpDir, conf.Opts.EncryptionKeyInfo)
+			if conf.Opts.BuildUnprivilege {
+				s.b.Opts.BuildUnprivilege = true
+			}
 		} else {
 			s.b, err = types.NewBundle(parentPath, conf.Opts.TmpDir)
 		}
@@ -180,7 +183,9 @@ func newBuild(defs []types.Definition, conf Config) (*Build, error) {
 			}
 		}
 
-		s.b.Opts.Gocryptfs = true
+		if conf.Opts.BuildUnprivilege {
+			s.b.Opts.BuildUnprivilege = true
+		}
 		b.stages = append(b.stages, s)
 	}
 

@@ -82,8 +82,8 @@ type Options struct {
 	// To warn when the above is needed, we need to know if the target of this
 	// bundle will be a sandbox
 	SandboxTarget bool
-	// whether using gocryptfs external program
-	Gocryptfs bool
+	// whether using gocryptfs to build and run encrypted containers
+	BuildUnprivilege bool
 }
 
 // NewEncryptedBundle creates an Encrypted Bundle environment.

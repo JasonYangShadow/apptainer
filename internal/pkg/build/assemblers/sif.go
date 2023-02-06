@@ -87,7 +87,7 @@ func createSIF(path string, b *types.Bundle, squashfile string, encOpts *encrypt
 	if encOpts != nil {
 		fs = sif.FsEncryptedSquashfs
 	}
-	if encOpts != nil && b.Opts.Gocryptfs {
+	if encOpts != nil && b.Opts.BuildUnprivilege {
 		fs = sif.FsGocryptfsSquashfs
 	}
 
@@ -156,7 +156,7 @@ func createSIF(path string, b *types.Bundle, squashfile string, encOpts *encrypt
 
 // Assemble creates a SIF image from a Bundle.
 func (a *SIFAssembler) Assemble(b *types.Bundle, path string) error {
-	sylog.Infof("Creating SIF file... b.Opts.Gocryptfs: %t", b.Opts.Gocryptfs)
+	sylog.Infof("Creating SIF file... b.Opts.Gocryptfs: %t", b.Opts.BuildUnprivilege)
 
 	f, err := os.CreateTemp(b.TmpDir, "squashfs-")
 	if err != nil {
@@ -190,7 +190,7 @@ func (a *SIFAssembler) Assemble(b *types.Bundle, path string) error {
 	sylog.Verbosef("Set SIF container architecture to %s", arch)
 
 	var encOpts *encryptionOptions
-	if b.Opts.Gocryptfs {
+	if b.Opts.BuildUnprivilege {
 		sylog.Debugf("start employing the gocryptfs encryption")
 		g := packer.NewGocryptfs()
 		g.MksquashfsPath = a.MksquashfsPath
@@ -199,6 +199,9 @@ func (a *SIFAssembler) Assemble(b *types.Bundle, path string) error {
 			return fmt.Errorf("while creating gocryptfs encrypted squashfs: %v", err)
 		}
 
+		if b.Opts.EncryptionKeyInfo == nil {
+			return fmt.Errorf("unable to obtain encryption key, please use --pem-path")
+		}
 		encOpts = &encryptionOptions{
 			keyInfo:   *b.Opts.EncryptionKeyInfo,
 			plaintext: g.Conf,

@@ -51,7 +51,6 @@ var buildArgs struct {
 	ignoreFakerootCmd bool // Ignore fakeroot command (hidden)
 	ignoreUserns      bool // Ignore user namespace(hidden)
 	remote            bool // Remote flag(hidden, only for helpful error message)
-	unprivilege       bool // Using gocryptfs to encrypt the image without privilege
 }
 
 // -s|--sandbox
@@ -286,16 +285,6 @@ var buildRemoteFlag = cmdline.Flag{
 	Hidden:       true,
 }
 
-var unprivilegedEncryptFlag = cmdline.Flag{
-	ID:           "unprivilege",
-	Value:        &buildArgs.unprivilege,
-	DefaultValue: false,
-	Name:         "unprivilege",
-	Usage:        "--unprivilege enables unprivileged encryption build",
-	EnvKeys:      []string{},
-	Hidden:       false,
-}
-
 func init() {
 	addCmdInit(func(cmdManager *cmdline.CommandManager) {
 		cmdManager.RegisterCmd(buildCmd)
@@ -335,7 +324,7 @@ func init() {
 		cmdManager.RegisterFlagForCmd(&buildIgnoreFakerootCommand, buildCmd)
 		cmdManager.RegisterFlagForCmd(&buildIgnoreUsernsFlag, buildCmd)
 		cmdManager.RegisterFlagForCmd(&buildRemoteFlag, buildCmd)
-		cmdManager.RegisterFlagForCmd(&unprivilegedEncryptFlag, buildCmd)
+		cmdManager.RegisterFlagForCmd(&buildUnprivilegeFlag, buildCmd)
 	})
 }
 

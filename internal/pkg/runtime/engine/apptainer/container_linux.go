@@ -800,8 +800,9 @@ func (c *container) mountImage(mnt *mount.Point) error {
 		}
 	}
 
+	sylog.Infof("options, %v, offset: %d, sizelimit: %d, keys: %d, mounttype: %s", mnt.InternalOptions, offset, sizelimit, len(key), mountType)
 	if mountType == "gocryptfs" {
-		sylog.Debugf("mountType is gocryptfs, needing decryption")
+		sylog.Infof("mountType is gocryptfs, needing decryption, %v, offset: %d, sizelimit: %d, keys: %d", mnt.InternalOptions, offset, sizelimit, len(key))
 		g := unpacker.NewGocryptfs()
 		newSource, err := g.DecryptOffset(mnt.Source, offset, sizelimit)
 		if err != nil {
