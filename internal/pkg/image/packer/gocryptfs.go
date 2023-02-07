@@ -31,10 +31,10 @@ func (g *Gocryptfs) Create(src []string, dest string, opts []string) error {
 	}
 
 	file, conf, unmount, err := gocryptfs.Encrypt(squashfile)
-	defer unmount()
 	if err != nil {
 		return err
 	}
+	defer unmount()
 
 	if encryptFile, ok := file.(*os.File); ok {
 		encryptFile.Close()

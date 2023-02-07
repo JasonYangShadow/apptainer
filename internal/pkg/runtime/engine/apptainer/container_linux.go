@@ -800,11 +800,18 @@ func (c *container) mountImage(mnt *mount.Point) error {
 		}
 	}
 
-	sylog.Infof("options, %v, offset: %d, sizelimit: %d, keys: %d, mounttype: %s", mnt.InternalOptions, offset, sizelimit, len(key), mountType)
+	sylog.Infof("options, %v, offset: %d, sizelimit: %d, mounttype: %s", mnt.InternalOptions, offset, sizelimit, mountType)
 	if mountType == "gocryptfs" {
-		sylog.Infof("mountType is gocryptfs, needing decryption, %v, offset: %d, sizelimit: %d, keys: %d", mnt.InternalOptions, offset, sizelimit, len(key))
+		conf, err := mount.GetKey(mnt.InternalOptions)
+		if err != nil {
+			return err
+		}
+		part := c.engine.EngineConfig.GetImageList()[0]
+		section := part.Sections[len(part.Sections)-1]
+
+		sylog.Infof("gocryptfs source: %s, offset: %d, sizelimit: %d, conf: %d", mnt.Source, section.Offset, section.Size, len(conf))
 		g := unpacker.NewGocryptfs()
-		newSource, err := g.DecryptOffset(mnt.Source, offset, sizelimit)
+		newSource, err := g.Decrypt(mnt.Source, section.Offset, section.Size, conf)
 		if err != nil {
 			return err
 		}
