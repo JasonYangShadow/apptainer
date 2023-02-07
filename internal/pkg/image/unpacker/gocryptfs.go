@@ -20,11 +20,10 @@ func (g *Gocryptfs) Decrypt(source string, offset, size uint64, conf []byte) (st
 	if err != nil {
 		return "", err
 	}
-	file, unmount, err := gocryptfs.Decrypt(src, int64(offset), int64(size), conf)
+	file, _, err := gocryptfs.Decrypt(src, int64(offset), int64(size), conf)
 	if err != nil {
 		return "", err
 	}
-	defer unmount()
 
 	if decryptFile, ok := file.(*os.File); ok {
 		decryptFile.Close()
