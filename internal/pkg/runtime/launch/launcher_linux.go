@@ -52,6 +52,8 @@ import (
 	"github.com/apptainer/apptainer/pkg/util/fs/proc"
 	"github.com/apptainer/apptainer/pkg/util/namespaces"
 	"github.com/apptainer/apptainer/pkg/util/rlimit"
+	lccgroups "github.com/opencontainers/runc/libcontainer/cgroups"
+	"github.com/opencontainers/runtime-spec/specs-go"
 	"golang.org/x/sys/unix"
 )
 
@@ -303,16 +305,7 @@ func (l *Launcher) Exec(ctx context.Context, image string, args []string, instan
 		l.cfg.Namespaces.User = !l.cfg.IgnoreUserns
 	}
 
-	// If we are not root, we need to pass in XDG / DBUS environment so we can communicate
-	// with systemd for any cgroups (v2) operations.
-	if l.uid != 0 {
-		sylog.Debugf("Recording rootless XDG_RUNTIME_DIR / DBUS_SESSION_BUS_ADDRESS")
-		l.engineConfig.SetXdgRuntimeDir(os.Getenv("XDG_RUNTIME_DIR"))
-		l.engineConfig.SetDbusSessionBusAddress(os.Getenv("DBUS_SESSION_BUS_ADDRESS"))
-	}
-
-	// Handle cgroups configuration (parsed from file or flags in CLI).
-	l.engineConfig.SetCgroupsJSON(l.cfg.CGroupsJSON)
+	l.setCgroups(instanceName)
 
 	// --boot flag requires privilege, so check for this.
 	err = withPrivilege(l.uid, l.cfg.Boot, "--boot", func() error { return nil })
@@ -333,6 +326,7 @@ func (l *Launcher) Exec(ctx context.Context, image string, args []string, instan
 
 	// Setup instance specific configuration if required.
 	if instanceName != "" {
+		l.generator.SetProcessEnvWithPrefixes(env.ApptainerPrefixes, "INSTANCE", instanceName)
 		l.cfg.Namespaces.PID = true
 		l.engineConfig.SetInstance(true)
 		l.engineConfig.SetBootInstance(l.cfg.Boot)
@@ -486,25 +480,43 @@ func (l *Launcher) setImageOrInstance(image string, name string) error {
 		l.cfg.Namespaces.User = file.UserNs
 		l.generator.SetProcessEnvWithPrefixes(env.ApptainerPrefixes, "CONTAINER", file.Image)
 		l.generator.SetProcessEnvWithPrefixes(env.ApptainerPrefixes, "NAME", filepath.Base(file.Image))
+		l.generator.SetProcessEnvWithPrefixes(env.ApptainerPrefixes, "INSTANCE", instanceName)
 		l.engineConfig.SetImage(image)
 		l.engineConfig.SetInstanceJoin(true)
 
-		// If we are running non-root, without a user ns, join the instance cgroup now, as we
-		// can't manipulate the ppid cgroup in the engine
-		// prepareInstanceJoinConfig().
-		//
-		// TODO - consider where /proc/sys/fs/cgroup is mounted in the engine
-		// flow, to move this further down.
-		if file.Cgroup && l.uid != 0 && !l.cfg.Namespaces.User {
+		// If we are running non-root, join the instance cgroup now, as we
+		// can't manipulate the ppid cgroup in the engine prepareInstanceJoinConfig().
+		// This flow is only applicable with the systemd cgroups manager.
+		if file.Cgroup && l.uid != 0 {
+			if !l.engineConfig.File.SystemdCgroups {
+				return fmt.Errorf("joining non-root instance with cgroups requires systemd as cgroups manager")
+			}
+
 			pid := os.Getpid()
-			sylog.Debugf("Adding process %d to instance cgroup", pid)
-			manager, err := cgroups.GetManagerForPid(file.Pid)
+
+			// First, we create a new systemd managed cgroup for ourselves. This is so that we will be
+			// under a common user-owned ancestor, allowing us to move into the instance cgroup next.
+			// See: https://www.kernel.org/doc/html/v4.18/admin-guide/cgroup-v2.html#delegation-containment
+			sylog.Debugf("Adding process %d to sibling cgroup", pid)
+			manager, err := cgroups.NewManagerWithSpec(&specs.LinuxResources{}, pid, "", true)
+			if err != nil {
+				return fmt.Errorf("couldn't create cgroup manager: %w", err)
+			}
+			cgPath, _ := manager.GetCgroupRelPath()
+			sylog.Debugf("In sibling cgroup: %s", cgPath)
+
+			// Now we should be under the user-owned service directory in the cgroupfs,
+			// so we can move into the actual instance cgroup that we want.
+			sylog.Debugf("Moving process %d to instance cgroup", pid)
+			manager, err = cgroups.GetManagerForPid(file.Pid)
 			if err != nil {
 				return fmt.Errorf("couldn't create cgroup manager: %w", err)
 			}
 			if err := manager.AddProc(pid); err != nil {
 				return fmt.Errorf("couldn't add process to instance cgroup: %w", err)
 			}
+			cgPath, _ = manager.GetCgroupRelPath()
+			sylog.Debugf("In instance cgroup: %s", cgPath)
 		}
 	} else {
 		abspath, err := filepath.Abs(image)
@@ -599,8 +611,7 @@ func (l *Launcher) useSuid(insideUserNs bool) (useSuid bool) {
 // setBinds sets engine configuration for requested bind mounts.
 func (l *Launcher) setBinds(fakerootPath string) error {
 	// First get binds from -B/--bind and env var
-	bindPaths := l.cfg.BindPaths
-	binds, err := apptainerConfig.ParseBindPath(bindPaths)
+	binds, err := apptainerConfig.ParseBindPath(l.cfg.BindPaths)
 	if err != nil {
 		return fmt.Errorf("while parsing bind path: %w", err)
 	}
@@ -621,7 +632,6 @@ func (l *Launcher) setBinds(fakerootPath string) error {
 		if err != nil {
 			return fmt.Errorf("while getting fakeroot bindpoints: %w", err)
 		}
-		bindPaths = append(bindPaths, fakebindPaths...)
 		fakebinds, err := apptainerConfig.ParseBindPath(fakebindPaths)
 		if err != nil {
 			return fmt.Errorf("while parsing fakeroot bind paths: %w", err)
@@ -631,21 +641,10 @@ func (l *Launcher) setBinds(fakerootPath string) error {
 
 	l.engineConfig.SetBindPath(binds)
 
-	for i, bindPath := range bindPaths {
-		splits := strings.Split(bindPath, ":")
-		if len(splits) > 1 {
-			// For nesting, change the source to the destination
-			//  because this level is bound at the destination
-			if len(splits) > 2 {
-				// Replace the source with the destination
-				splits[0] = splits[1]
-				bindPath = strings.Join(splits, ":")
-			} else {
-				// leave only the destination
-				bindPath = splits[1]
-			}
-			bindPaths[i] = bindPath
-		}
+	// Pass only the destinations to nested binds
+	bindPaths := make([]string, len(binds))
+	for i, bind := range binds {
+		bindPaths[i] = bind.Destination
 	}
 	l.generator.SetProcessEnvWithPrefixes(env.ApptainerPrefixes, "BIND", strings.Join(bindPaths, ","))
 	return nil
@@ -1005,6 +1004,48 @@ func (l *Launcher) setProcessCwd() {
 	} else {
 		sylog.Warningf("can't determine current working directory: %s", err)
 	}
+}
+
+// setCgroups sets cgroup related configuration
+func (l *Launcher) setCgroups(instanceName string) error {
+	// If we are not root, we need to pass in XDG / DBUS environment so we can communicate
+	// with systemd for any cgroups (v2) operations.
+	if l.uid != 0 {
+		sylog.Debugf("Recording rootless XDG_RUNTIME_DIR / DBUS_SESSION_BUS_ADDRESS")
+		l.engineConfig.SetXdgRuntimeDir(os.Getenv("XDG_RUNTIME_DIR"))
+		l.engineConfig.SetDbusSessionBusAddress(os.Getenv("DBUS_SESSION_BUS_ADDRESS"))
+	}
+
+	if l.cfg.CGroupsJSON != "" {
+		// Handle cgroups configuration (parsed from file or flags in CLI).
+		l.engineConfig.SetCgroupsJSON(l.cfg.CGroupsJSON)
+		return nil
+	}
+
+	if instanceName == "" {
+		return nil
+	}
+
+	// If we are an instance, always use a cgroup if possible, to enable stats.
+	// root can always create a cgroup.
+	useCG := l.uid == 0
+	// non-root needs cgroups v2 unified mode + systemd as cgroups manager.
+	if l.uid != 0 && lccgroups.IsCgroup2UnifiedMode() && l.engineConfig.File.SystemdCgroups {
+		useCG = true
+	}
+
+	if useCG {
+		cg := cgroups.Config{}
+		cgJSON, err := cg.MarshalJSON()
+		if err != nil {
+			return err
+		}
+		l.engineConfig.SetCgroupsJSON(cgJSON)
+		return nil
+	}
+
+	sylog.Infof("Instance stats will not be available - requires cgroups v2 with systemd as manager.")
+	return nil
 }
 
 // PrepareImage performs any image preparation required before execution.

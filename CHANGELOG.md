@@ -7,19 +7,19 @@ For older changes see the [archived Singularity change log](https://github.com/a
 
 ## Changes Since Last Release
 
-### Bug fixes
-
-- Fix `GOCACHE` environment variable settings when building debian source
-  package on PPA build environment.
-- Make `PS1` environment variable changeable via `%environment` section on
-  definition file that used to be only changeable via `APPTAINERENV_PS1`
-  outside of container. This makes container's prompt customizable.
-
 ### Changed defaults / behaviours
 
 - When the kernel supports unprivileged overlay mounts in a user
   namespace, the container will be constructed using an overlay
   instead of underlay layout.
+- A new `--reproducible` flag for `./mconfig` will configure Apptainer so that
+  its binaries do not contain non-reproducible paths. This disables plugin
+  functionality.
+- Overlay is blocked on the `panfs` filesystem, allowing sandbox directories to be
+  run from `panfs` without error.
+- Instances are started in a cgroup, by default, when run as root or when
+  unified cgroups v2 with systemd as manager is configured. This allows
+  `apptainer instance stats` to be supported by default when possible.
 
 ### New features / functionalities
 
@@ -33,12 +33,53 @@ For older changes see the [archived Singularity change log](https://github.com/a
 - Support for `DOCKER_HOST` parsing when using `docker-daemon://`
 - `DOCKER_USERNAME` and `DOCKER_PASSWORD` supported without `APPTAINER_` prefix.
 - Add new Linux capabilities: `CAP_PERFMON`, `CAP_BPF`, `CAP_CHECKPOINT_RESTORE`.
+- Instance name is available inside an instance via the new
+  `APPTAINER_INSTANCE` environment variable.
+
+### Security fix
+
+- Included a fix for [CVE-2022-23538](https://github.com/sylabs/scs-library-client/security/advisories/GHSA-7p8m-22h4-9pj7)
+  which potentially leaked user credentials to a third-party S3 storage
+  service when using the `library://` protocol.  See the link for details.
+
+### Bug fixes
+
+- Fix non-root instance join with unprivileged systemd managed cgroups, when
+  join is from outside a user-owned cgroup.
 
 ### Bug fixes
 
 - Restored the ability for running instances to be tracked when apptainer
   is installed with tools/install-unprivileged.sh.  Instance tracking
   depends on argument 0 of the starter, which was not getting preserved.
+- Fix `GOCACHE` environment variable settings when building debian source
+  package on PPA build environment.
+- Make `PS1` environment variable changeable via `%environment` section on
+  definition file that used to be only changeable via `APPTAINERENV_PS1`
+  outside of container. This makes container's prompt customizable.
+- Fix the passing of nested bind mounts when there are multiple binds
+  separated by commas and some of them have colons separating sources
+  and destinations.
+- Added `Provides: bundled(golang())` statements to the rpm packaging
+  for each bundled golang module.
+- Define EUID in %environment alongside UID.
+- In `--rocm` mode, the whole of `/dev/dri` is now bound into the container when
+  `--contain` is in use. This makes `/dev/dri/render` devices available,
+  required for later ROCm versions.
+- Hide messages about SINGULARITY variables if corresponding APPTAINER
+  variables are defined. Fixes a regression introduced in 1.1.4.
+- Print a warning if extra arguments are given to a shell action, and
+  show in the run action usage that arguments may be passed.
+- Check for the existence of the runtime executable prefix, to avoid
+  issues when running under Slurm's srun. If it doesn't exist, fall
+  back to the compile-time prefix.
+- Increase the timeout on image driver (that is, FUSE) mounts from 2
+  seconds to 10 seconds.  Instead, print an INFO message if it takes
+  more than 2 seconds.
+- If a `remote` is defined both globally (i.e. system-wide) and
+  individually, change `apptainer remote` commands to print an info message
+  instead of exiting with a fatal error and to give precedence to the
+  individual configuration.
 
 ## v1.1.5 - \[2023-01-10\]
 
