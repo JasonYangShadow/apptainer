@@ -79,6 +79,8 @@ Obsoletes: singularity-runtime < 3.0
 Provides: sif-runtime
 Conflicts: sif-runtime
 
+@BUNDLED_PROVIDES@
+
 %if "%{_target_vendor}" == "suse"
 BuildRequires: binutils-gold
 %endif
@@ -122,6 +124,8 @@ Requires: %{name} = %{version}-%{release}
 # on this subpackage for greater compatibility after an update from the
 # old singularity.
 Obsoletes: singularity <= %{last_singularity_version}
+# FESCo asked to have this form of Provides
+Provides: alternative-for(singularity)
 
 %description suid
 Provides the optional setuid-root portion of Apptainer.

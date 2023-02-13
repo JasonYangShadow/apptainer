@@ -24,9 +24,8 @@ hstld=
 hstranlib=
 hstobjcopy=
 hstgo=
-hstgo_version="1.17.5"
-hstgo_preferred_version="1.17.5"
-hstgo_opts="go"
+hstgo_version="1.18"
+hstgo_preferred_version="1.18.9"
 
 tgtcc=
 tgtcc_opts=$hstcc_opts
@@ -89,6 +88,7 @@ libdir=
 localedir=
 mandir=
 
+reproducible=0
 
 usage () {
 	echo "${0##*/}: could not complete configuration"
@@ -146,6 +146,11 @@ usage_args () {
 	echo "     --libdir         install libraries in \`libdir'"
 	echo "     --localedir      install locale dependent data in \`localedir'"
 	echo "     --mandir         install man documentation in \`mandir'"
+  echo
+  echo "  Reproducible builds:"
+  echo "     --reproducible   set reproducible SOURCEDIR & BUILDDIR values in binaries."
+  echo "                      This will disable plugin build functionality."
+
 	echo
 }
 
@@ -378,6 +383,8 @@ while [ $# -ne 0 ]; do
    with_seccomp_check=0; shift;;
   --only-rpm)
    do_go_version_check=0; shift;;
+  --reproducible)
+   reproducible=1; shift;;
   -V)
    if ! echo "$2" | awk '/^-.*/ || /^$/ { exit 2 }'; then
      echo "error: option requires an argument: $1"
@@ -881,7 +888,15 @@ if [ "$host" = "unix" ]; then
 	    -e "s/@PACKAGE_RPM_VERSION@/${package_rpm_version}/" \
 	    -e "s/@PACKAGE_RELEASE@/${release_info}/" \
 	    -e "s,@PACKAGE_GOLANG_SOURCE@,${package_golang_source}," \
-		$sourcedir/dist/rpm/$RPMSPEC.in >$sourcedir/$RPMSPEC
+		$sourcedir/dist/rpm/$RPMSPEC.in | \
+		while read -r; do
+			if [ "$REPLY" = "@BUNDLED_PROVIDES@" ]; then
+				# Calculate bundled provides
+				awk '{if (index($1, "/") != 0 && ($1 != "//")) {print "Provides: bundled(golang("$1")) = "$2}}' go.mod | sed -e 's/-/_/g' | sort | uniq
+			else
+				echo "$REPLY"
+			fi
+		done >$sourcedir/$RPMSPEC
 fi
 
 

@@ -96,6 +96,14 @@ func getPrefix() (string) {
 			return
 		}
 
+		_, err = os.Stat(executablePath)
+		if err != nil {
+			// Due to mount namespace issues, os.Executable may return a non-existing
+			// location
+			installPrefix = "{{.Prefix}}"
+			return
+		}
+
 		bin := filepath.Dir(executablePath)
 		base := filepath.Base(executablePath)
 
@@ -193,6 +201,10 @@ func relocatePath(original string) string {
 {{ range $i, $d := .Defines }}
 {{$d.WriteLine -}}
 {{end}}
+
+func IsReproducibleBuild() bool {
+	return SOURCEDIR == "REPRODUCIBLE_BUILD"
+}
 `))
 
 func main() {
