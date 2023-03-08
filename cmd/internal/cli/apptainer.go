@@ -64,6 +64,7 @@ var (
 	noHTTPS             bool
 	useBuildConfig      bool
 	tmpDir              string
+	unprivilege         bool
 )
 
 // apptainer command flags
@@ -250,6 +251,15 @@ var singBuildConfigFlag = cmdline.Flag{
 	DefaultValue: false,
 	Name:         "build-config",
 	Usage:        "use configuration needed for building containers",
+}
+
+// --unprivilege
+var unprivilegeFlag = cmdline.Flag{
+	ID:           "unprivilegeFlag",
+	Value:        &unprivilege,
+	DefaultValue: false,
+	Name:         "unprivilege",
+	Usage:        "use gocryptfs to build and run encrypted containers",
 }
 
 func getCurrentUser() *user.User {
@@ -860,7 +870,7 @@ func getLibraryClientConfig(uri string) (*libClient.Config, error) {
 		return nil, err
 	}
 	if libClientConfig.BaseURL == "" {
-		return nil, fmt.Errorf("remote has no library client")
+		return nil, fmt.Errorf("remote has no library client (see https://apptainer.org/docs/user/latest/endpoint.html#no-default-remote)")
 	}
 	return libClientConfig, nil
 }

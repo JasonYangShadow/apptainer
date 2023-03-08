@@ -70,6 +70,10 @@ func (d *ubuntuOvlDriver) Stop(target string) error {
 	return nil
 }
 
+func (d *ubuntuOvlDriver) GetDriverName() string {
+	return driverName
+}
+
 // setConfiguration sets "image driver" and "enable overlay" configuration directives
 // during apptainer plugin install step.
 func setConfiguration(_ string) error {

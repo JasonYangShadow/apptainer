@@ -62,6 +62,8 @@ type Driver interface {
 	Stop(string) error
 	// Features Feature returns supported features.
 	Features() DriverFeature
+	// GetDriverName returns the driver name
+	GetDriverName() string
 }
 
 // drivers holds all registered image drivers

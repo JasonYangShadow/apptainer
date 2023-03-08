@@ -205,7 +205,7 @@ func runBuild(cmd *cobra.Command, args []string) {
 func runBuildLocal(ctx context.Context, cmd *cobra.Command, dst, spec string, fakerootPath string) {
 	var keyInfo *cryptkey.KeyInfo
 	if buildArgs.encrypt || promptForPassphrase || cmd.Flags().Lookup("pem-path").Changed {
-		if namespaces.IsUnprivileged() {
+		if namespaces.IsUnprivileged() && !unprivilege {
 			sylog.Fatalf("You must be root to build an encrypted container")
 		}
 
@@ -321,6 +321,7 @@ func runBuildLocal(ctx context.Context, cmd *cobra.Command, dst, spec string, fa
 				EncryptionKeyInfo: keyInfo,
 				FixPerms:          buildArgs.fixPerms,
 				SandboxTarget:     sandboxTarget,
+				Unprivilege:       unprivilege,
 			},
 		})
 	if err != nil {

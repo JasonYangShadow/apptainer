@@ -122,6 +122,9 @@ func newBuild(defs []types.Definition, conf Config) (*Build, error) {
 		var s stage
 		if conf.Opts.EncryptionKeyInfo != nil {
 			s.b, err = types.NewEncryptedBundle(parentPath, conf.Opts.TmpDir, conf.Opts.EncryptionKeyInfo)
+			if conf.Opts.Unprivilege {
+				s.b.Opts.Unprivilege = true
+			}
 		} else {
 			s.b, err = types.NewBundle(parentPath, conf.Opts.TmpDir)
 		}

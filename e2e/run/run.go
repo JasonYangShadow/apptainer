@@ -412,6 +412,37 @@ func (c ctx) testAddPackageWithFakerootAndTmpfs(t *testing.T) {
 	)
 }
 
+func (c ctx) testExecGocryptfsEncryptedSIF(t *testing.T) {
+	pemPubFile, pemPrivFile := e2e.GeneratePemFiles(t, c.env.TestDir)
+	// We create a temporary directory to store the image, making sure tests
+	// will not pollute each other
+	tempDir, cleanup := e2e.MakeTempDir(t, c.env.TestDir, "", "")
+	defer cleanup(t)
+
+	imgPath := filepath.Join(tempDir, "encrypted_gocryptfs.sif")
+	cmdArgs := []string{"--unprivilege", "--pem-path", pemPubFile, imgPath, e2e.BusyboxSIF(t)}
+	c.env.RunApptainer(
+		t,
+		e2e.WithProfile(e2e.UserProfile),
+		e2e.WithCommand("build"),
+		e2e.WithArgs(cmdArgs...),
+		e2e.ExpectExit(0),
+	)
+
+	// Using command line
+	cmdArgs = []string{"--unprivilege", "--pem-path", pemPrivFile, imgPath, "sh", "-c", "echo 'hi'"}
+	c.env.RunApptainer(
+		t,
+		e2e.WithProfile(e2e.UserProfile),
+		e2e.WithCommand("exec"),
+		e2e.WithArgs(cmdArgs...),
+		e2e.ExpectExit(
+			0,
+			e2e.ExpectOutput(e2e.ExactMatch, "hi"),
+		),
+	)
+}
+
 // E2ETests is the main func to trigger the test suite
 func E2ETests(env e2e.TestEnv) testhelper.Tests {
 	c := ctx{
@@ -427,5 +458,6 @@ func E2ETests(env e2e.TestEnv) testhelper.Tests {
 		"fuse squash mount":                   c.testFuseSquashMount,
 		"fuse ext3 mount":                     c.testFuseExt3Mount,
 		"add package with fakeroot and tmpfs": c.testAddPackageWithFakerootAndTmpfs,
+		"gocryptfs sif executation":           c.testExecGocryptfsEncryptedSIF,
 	}
 }

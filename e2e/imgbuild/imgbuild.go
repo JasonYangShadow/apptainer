@@ -850,6 +850,21 @@ func (c *imgBuildTests) ensureImageIsEncrypted(t *testing.T, imgPath string) {
 	)
 }
 
+func (c *imgBuildTests) ensureImageIsGocryptfsEncrypted(t *testing.T, imgPath string) {
+	sifID := "4"
+	cmdArgs := []string{"info", sifID, imgPath}
+	c.env.RunApptainer(
+		t,
+		e2e.WithProfile(e2e.UserProfile),
+		e2e.WithCommand("sif"),
+		e2e.WithArgs(cmdArgs...),
+		e2e.ExpectExit(
+			0,
+			e2e.ExpectOutput(e2e.ContainMatch, "Gocryptfs squashfs"),
+		),
+	)
+}
+
 func (c imgBuildTests) buildEncryptPemFile(t *testing.T) {
 	busyboxSIF := e2e.BusyboxSIF(t)
 
@@ -1689,6 +1704,30 @@ cat /proc/$$/cmdline`
 	)
 }
 
+func (c imgBuildTests) testGocryptfsSIFBuild(t *testing.T) {
+	tmpDir, cleanup := e2e.MakeTempDir(t, c.env.TestDir, "test-gocryptfs-sif-build-", "")
+	defer cleanup(t)
+
+	imgPath := fmt.Sprintf("%s/img.sif", tmpDir)
+	pubKey, _ := e2e.GeneratePemFiles(t, tmpDir)
+	expectedExitCode := 0
+	busybox := e2e.BusyboxSIF(t)
+	cmdArgs := []string{"--unprivilege", "--pem-path", pubKey, imgPath, busybox}
+	c.env.RunApptainer(
+		t,
+		e2e.WithProfile(e2e.UserProfile),
+		e2e.WithCommand("build"),
+		e2e.WithArgs(cmdArgs...),
+		e2e.ExpectExit(
+			expectedExitCode,
+		),
+	)
+	// If the command was supposed to succeed, we check the image
+	if expectedExitCode == 0 {
+		c.ensureImageIsGocryptfsEncrypted(t, imgPath)
+	}
+}
+
 // E2ETests is the main func to trigger the test suite
 func E2ETests(env e2e.TestEnv) testhelper.Tests {
 	c := imgBuildTests{
@@ -1727,5 +1766,6 @@ func E2ETests(env e2e.TestEnv) testhelper.Tests {
 		"issue 5668":                        c.issue5668,                            // https://github.com/apptainer/singularity/issues/5435
 		"issue 5690":                        c.issue5690,                            // https://github.com/apptainer/singularity/issues/5690
 		"test sif header and execute image": c.testSIFHeaderAndExecute,              // https://github.com/apptainer/apptainer/issues/211
+		"build sif image using gocryptfs":   c.testGocryptfsSIFBuild,
 	}
 }

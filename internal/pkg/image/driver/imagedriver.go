@@ -43,11 +43,12 @@ type fuseappsFeature struct {
 }
 
 type fuseappsDriver struct {
-	squashFeature  fuseappsFeature
-	ext3Feature    fuseappsFeature
-	overlayFeature fuseappsFeature
-	cmdPrefix      []string
-	squashSetUID   bool
+	squashFeature    fuseappsFeature
+	ext3Feature      fuseappsFeature
+	overlayFeature   fuseappsFeature
+	gocryptfsFeature gocryptfsFeature
+	cmdPrefix        []string
+	squashSetUID     bool
 }
 
 func (f *fuseappsFeature) init(binNames string, purpose string, desired image.DriverFeature) {
@@ -68,11 +69,6 @@ func (f *fuseappsFeature) init(binNames string, purpose string, desired image.Dr
 }
 
 func InitImageDrivers(register bool, unprivileged bool, fileconf *apptainerconf.File, desiredFeatures image.DriverFeature) error {
-	if fileconf.ImageDriver != "" && fileconf.ImageDriver != driverName {
-		sylog.Debugf("skipping installing %v image driver because %v already configured", driverName, fileconf.ImageDriver)
-		// allow a configured driver to take precedence
-		return nil
-	}
 	if !unprivileged {
 		// no need for these features if running privileged
 		if fileconf.ImageDriver == driverName {
@@ -80,15 +76,24 @@ func InitImageDrivers(register bool, unprivileged bool, fileconf *apptainerconf.
 			// at an earlier point (e.g. TestLibraryPacker unit-test)
 			fileconf.ImageDriver = ""
 		}
+
+		return InitGocryptfsDriver(register, fileconf, desiredFeatures)
+	}
+
+	if fileconf.ImageDriver != "" && fileconf.ImageDriver != driverName {
+		sylog.Debugf("skipping installing %v image driver because %v already configured", driverName, fileconf.ImageDriver)
+		// allow a configured driver to take precedence
 		return nil
 	}
 
 	var squashFeature fuseappsFeature
 	var ext3Feature fuseappsFeature
 	var overlayFeature fuseappsFeature
+	var gocryptfsFeature gocryptfsFeature
 	squashFeature.init("squashfuse_ll|squashfuse", "mount SIF", desiredFeatures&image.ImageFeature)
 	ext3Feature.init("fuse2fs", "mount EXT3 filesystems", desiredFeatures&image.ImageFeature)
 	overlayFeature.init("fuse-overlayfs", "use overlay", desiredFeatures&image.OverlayFeature)
+	gocryptfsFeature.init("gocryptfs", "use gocryptfs", desiredFeatures&image.ImageFeature)
 
 	// squashfuse generally supports the -o uid and -o gid options, except
 	// on Debian 18.04, but it doesn't show in the help output so we just
@@ -121,11 +126,11 @@ func InitImageDrivers(register bool, unprivileged bool, fileconf *apptainerconf.
 		_ = cmd.Wait()
 	}
 
-	if squashFeature.cmdPath != "" || ext3Feature.cmdPath != "" || overlayFeature.cmdPath != "" {
+	if squashFeature.cmdPath != "" || ext3Feature.cmdPath != "" || overlayFeature.cmdPath != "" || gocryptfsFeature.gocryptfsPath != "" {
 		sylog.Debugf("Setting ImageDriver to %v", driverName)
 		fileconf.ImageDriver = driverName
 		if register {
-			return image.RegisterDriver(driverName, &fuseappsDriver{squashFeature, ext3Feature, overlayFeature, []string{}, squashSetUID})
+			return image.RegisterDriver(driverName, &fuseappsDriver{squashFeature, ext3Feature, overlayFeature, gocryptfsFeature, []string{}, squashSetUID})
 		}
 	}
 	return nil
@@ -177,7 +182,9 @@ func (d *fuseappsDriver) Mount(params *image.MountParams, mfunc image.MountFunc)
 		}
 		cmdArgs = append(cmdArgs, f.cmdPath, "-f", "-o", optsStr, srcPath, params.Target)
 		cmd = exec.Command(cmdArgs[0], cmdArgs[1:]...)
-
+	case "gocryptfs":
+		g := &d.gocryptfsFeature
+		return g.Mount(params, mfunc, d.cmdPrefix)
 	case "ext3":
 		f = &d.ext3Feature
 		srcPath := params.Source
@@ -455,5 +462,12 @@ func (d *fuseappsDriver) Stop(target string) error {
 	if err = d.overlayFeature.stop(target, false); err != nil {
 		return err
 	}
+	if err = d.gocryptfsFeature.stop(target, false); err != nil {
+		return err
+	}
 	return nil
+}
+
+func (d *fuseappsDriver) GetDriverName() string {
+	return driverName
 }

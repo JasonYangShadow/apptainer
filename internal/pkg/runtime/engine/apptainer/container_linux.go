@@ -792,24 +792,29 @@ func (c *container) mountImage(mnt *mount.Point) error {
 
 	mountType := mnt.Type
 
-	if mountType == "encryptfs" {
+	if mountType == "encryptfs" || mountType == "gocryptfs" {
 		key, err = mount.GetKey(mnt.InternalOptions)
 		if err != nil {
 			return err
 		}
 	}
 
-	if imageDriver != nil && imageDriver.Features()&image.ImageFeature != 0 {
-		params := &image.MountParams{
-			Source:     mnt.Source,
-			Target:     mnt.Destination,
-			Filesystem: mountType,
-			Flags:      flags,
-			Offset:     offset,
-			Size:       sizelimit,
-			Key:        key,
-			FSOptions:  opts,
-		}
+	params := &image.MountParams{
+		Source:     mnt.Source,
+		Target:     mnt.Destination,
+		Filesystem: mountType,
+		Flags:      flags,
+		Offset:     offset,
+		Size:       sizelimit,
+		Key:        key,
+		FSOptions:  opts,
+	}
+
+	if mountType == "gocryptfs" && imageDriver != nil && imageDriver.GetDriverName() == "gocryptfsDriver" {
+		return imageDriver.Mount(params, c.rpcOps.Mount)
+	}
+
+	if imageDriver != nil && imageDriver.Features()&image.ImageFeature != 0 && imageDriver.GetDriverName() == "fuseapps" {
 		return imageDriver.Mount(params, c.rpcOps.Mount)
 	}
 
@@ -909,6 +914,9 @@ func (c *container) addRootfsMount(system *mount.System) error {
 		mountType = "ext3"
 	case image.ENCRYPTSQUASHFS:
 		mountType = "encryptfs"
+		key = c.engine.EngineConfig.GetEncryptionKey()
+	case image.GOCRYPTFSSQUASHFS:
+		mountType = "gocryptfs"
 		key = c.engine.EngineConfig.GetEncryptionKey()
 	case image.SANDBOX:
 		sylog.Debugf("Mounting directory rootfs: %v\n", rootfs)
