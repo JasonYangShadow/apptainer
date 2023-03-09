@@ -121,8 +121,7 @@ func (g *Gocryptfs) init() (cryptInfo *cryptInfo, err error) {
 		return
 	}
 	cryptInfo.pid = cmd.Process.Pid
-
-	return
+	return cryptInfo, nil
 }
 
 func (g *Gocryptfs) create(files []string, dest string, opts []string) error {
