@@ -64,7 +64,6 @@ var (
 	noHTTPS             bool
 	useBuildConfig      bool
 	tmpDir              string
-	unprivilege         bool
 )
 
 // apptainer command flags
@@ -251,15 +250,6 @@ var singBuildConfigFlag = cmdline.Flag{
 	DefaultValue: false,
 	Name:         "build-config",
 	Usage:        "use configuration needed for building containers",
-}
-
-// --unprivilege
-var unprivilegeFlag = cmdline.Flag{
-	ID:           "unprivilegeFlag",
-	Value:        &unprivilege,
-	DefaultValue: false,
-	Name:         "unprivilege",
-	Usage:        "use gocryptfs to build and run encrypted containers",
 }
 
 func getCurrentUser() *user.User {

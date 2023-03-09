@@ -945,6 +945,5 @@ func init() {
 		cmdManager.RegisterFlagForCmd(&actionIgnoreSubuidFlag, actionsInstanceCmd...)
 		cmdManager.RegisterFlagForCmd(&actionIgnoreFakerootCommand, actionsInstanceCmd...)
 		cmdManager.RegisterFlagForCmd(&actionIgnoreUsernsFlag, actionsInstanceCmd...)
-		cmdManager.RegisterFlagForCmd(&unprivilegeFlag, actionsInstanceCmd...)
 	})
 }

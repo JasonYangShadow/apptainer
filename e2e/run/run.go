@@ -420,7 +420,7 @@ func (c ctx) testExecGocryptfsEncryptedSIF(t *testing.T) {
 	defer cleanup(t)
 
 	imgPath := filepath.Join(tempDir, "encrypted_gocryptfs.sif")
-	cmdArgs := []string{"--unprivilege", "--pem-path", pemPubFile, imgPath, e2e.BusyboxSIF(t)}
+	cmdArgs := []string{"--pem-path", pemPubFile, imgPath, e2e.BusyboxSIF(t)}
 	c.env.RunApptainer(
 		t,
 		e2e.WithProfile(e2e.UserProfile),
@@ -430,12 +430,25 @@ func (c ctx) testExecGocryptfsEncryptedSIF(t *testing.T) {
 	)
 
 	// Using command line
-	cmdArgs = []string{"--unprivilege", "--pem-path", pemPrivFile, imgPath, "sh", "-c", "echo 'hi'"}
+	cmdArgs = []string{"--pem-path", pemPrivFile, imgPath, "sh", "-c", "echo 'hi'"}
 	c.env.RunApptainer(
 		t,
 		e2e.WithProfile(e2e.UserProfile),
 		e2e.WithCommand("exec"),
 		e2e.WithArgs(cmdArgs...),
+		e2e.ExpectExit(
+			0,
+			e2e.ExpectOutput(e2e.ExactMatch, "hi"),
+		),
+	)
+
+	// Using environment variables
+	c.env.RunApptainer(
+		t,
+		e2e.WithProfile(e2e.UserProfile),
+		e2e.WithCommand("exec"),
+		e2e.WithArgs(cmdArgs...),
+		e2e.WithEnv([]string{fmt.Sprintf("APPTAINER_ENCRYPTION_PEM_PATH=%s", pemPrivFile)}),
 		e2e.ExpectExit(
 			0,
 			e2e.ExpectOutput(e2e.ExactMatch, "hi"),

@@ -324,7 +324,6 @@ func init() {
 		cmdManager.RegisterFlagForCmd(&buildIgnoreFakerootCommand, buildCmd)
 		cmdManager.RegisterFlagForCmd(&buildIgnoreUsernsFlag, buildCmd)
 		cmdManager.RegisterFlagForCmd(&buildRemoteFlag, buildCmd)
-		cmdManager.RegisterFlagForCmd(&unprivilegeFlag, buildCmd)
 	})
 }
 
@@ -356,11 +355,6 @@ func preRun(cmd *cobra.Command, args []string) {
 
 	if buildArgs.remote {
 		err := errors.New("--remote is no longer supported, try building locally without it")
-		cobra.CheckErr(err)
-	}
-
-	if unprivilege && encryptionPEMPath == "" {
-		err := errors.New("--unprivilege and --pem-path should be used together")
 		cobra.CheckErr(err)
 	}
 }

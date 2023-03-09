@@ -1708,11 +1708,11 @@ func (c imgBuildTests) testGocryptfsSIFBuild(t *testing.T) {
 	tmpDir, cleanup := e2e.MakeTempDir(t, c.env.TestDir, "test-gocryptfs-sif-build-", "")
 	defer cleanup(t)
 
-	imgPath := fmt.Sprintf("%s/img.sif", tmpDir)
+	imgcli := fmt.Sprintf("%s/imgcli.sif", tmpDir)
 	pubKey, _ := e2e.GeneratePemFiles(t, tmpDir)
 	expectedExitCode := 0
 	busybox := e2e.BusyboxSIF(t)
-	cmdArgs := []string{"--unprivilege", "--pem-path", pubKey, imgPath, busybox}
+	cmdArgs := []string{"--pem-path", pubKey, imgcli, busybox}
 	c.env.RunApptainer(
 		t,
 		e2e.WithProfile(e2e.UserProfile),
@@ -1724,7 +1724,24 @@ func (c imgBuildTests) testGocryptfsSIFBuild(t *testing.T) {
 	)
 	// If the command was supposed to succeed, we check the image
 	if expectedExitCode == 0 {
-		c.ensureImageIsGocryptfsEncrypted(t, imgPath)
+		c.ensureImageIsGocryptfsEncrypted(t, imgcli)
+	}
+
+	imgenv := fmt.Sprintf("%s/imgenv.sif", tmpDir)
+	cmdArgs = []string{"--pem-path", pubKey, imgenv, busybox}
+	c.env.RunApptainer(
+		t,
+		e2e.WithProfile(e2e.UserProfile),
+		e2e.WithCommand("build"),
+		e2e.WithArgs(cmdArgs...),
+		e2e.WithEnv([]string{fmt.Sprintf("APPTAINER_ENCRYPTION_PEM_PATH=%s", pubKey)}),
+		e2e.ExpectExit(
+			expectedExitCode,
+		),
+	)
+	// If the command was supposed to succeed, we check the image
+	if expectedExitCode == 0 {
+		c.ensureImageIsGocryptfsEncrypted(t, imgenv)
 	}
 }
 
