@@ -20,7 +20,11 @@ import (
 	mountPkg "github.com/moby/sys/mountinfo"
 )
 
-const gocryptfsDriverName = "gocryptfsDriver"
+const (
+	gocryptfsDriverName = "gocryptfsDriver"
+	SQUASHFS            = iota
+	GOCRYPTFS
+)
 
 type gocryptfsDriver struct {
 	gocryptfsFeature
@@ -36,9 +40,10 @@ type gocryptfsFeature struct {
 }
 
 type mountInfo struct {
-	pid     int
-	srcPath string
-	dstPath string
+	pid       int
+	srcPath   string
+	dstPath   string
+	mountType int
 }
 
 type decryptInfo struct {
@@ -54,11 +59,44 @@ var sysAttr = &syscall.SysProcAttr{
 	},
 }
 
+var defaultCleanFnGenerator = func(target string, pid int, mountType int) func(bool) {
+	return func(kill bool) {
+		err := syscall.Unmount(target, 0)
+		if err != nil && err.(syscall.Errno) != syscall.EINVAL {
+			if err.(syscall.Errno) == syscall.EBUSY {
+				err = syscall.Unmount(target, syscall.MNT_DETACH)
+				if err != nil {
+					sylog.Errorf("could not do lazy unmount on the mount point: %s, err: %v", target, err)
+					if kill {
+						if mountType == GOCRYPTFS {
+							// find the real gocryptfs pid
+							p, err := GetGocryptfsPid(fmt.Sprintf("-notifypid=%d", pid))
+							if err != nil {
+								sylog.Errorf("find gocryptfs pid encounters error: %v", err)
+							} else {
+								pid = p
+							}
+						}
+
+						err = KillProcess(pid)
+						if err != nil {
+							sylog.Errorf("could not kill process, pid: %d, err: %v", pid, err)
+						}
+					}
+				}
+			}
+			if err != nil {
+				sylog.Errorf("cleanFn has err: %v", err)
+			}
+		}
+	}
+}
+
 func (g *gocryptfsFeature) init(binName string, purpose string, desiredFeatures image.DriverFeature) {
 	if binName != "gocryptfs" {
-		sylog.Debugf("mounting not enabled because the input binName is not 'gocryptfs'")
+		sylog.Debugf("binName: %s is not 'gocryptfs', return directly", binName)
 		if desiredFeatures != 0 {
-			sylog.Infof("mounting not enabled because the input binName is not 'gocryptfs'")
+			sylog.Infof("binName: %s is not 'gocryptfs', will not be able to %v", binName, purpose)
 		}
 		return
 	}
@@ -145,7 +183,7 @@ func (g *gocryptfsFeature) Mount(params *image.MountParams, mfunc image.MountFun
 		return err
 	}
 
-	go checkMountInfo(g.decryptInfo.cipherDir, ch)
+	go CheckMountInfo(g.decryptInfo.cipherDir, ch)
 
 	err = <-ch
 	if err != nil {
@@ -179,9 +217,10 @@ func (g *gocryptfsFeature) Mount(params *image.MountParams, mfunc image.MountFun
 	}
 
 	g.mountInfos = append(g.mountInfos, mountInfo{
-		pid:     cmd.Process.Pid,
-		srcPath: params.Source,
-		dstPath: g.decryptInfo.cipherDir,
+		pid:       cmd.Process.Pid,
+		srcPath:   params.Source,
+		dstPath:   g.decryptInfo.cipherDir,
+		mountType: SQUASHFS,
 	})
 
 	// step 3. trigger gocryptfs fuse mount
@@ -190,23 +229,17 @@ func (g *gocryptfsFeature) Mount(params *image.MountParams, mfunc image.MountFun
 		return err
 	}
 
-	go checkMountInfo(g.decryptInfo.plainDir, ch)
+	go CheckMountInfo(g.decryptInfo.plainDir, ch)
 	err = <-ch
 	if err != nil {
 		return err
 	}
 
-	pid := cmd.Process.Pid
-	p, err := getGocryptfsPid(fmt.Sprintf("-notifypid=%d", pid))
-	if err != nil {
-		return err
-	}
-	pid = p.pid
-
 	g.mountInfos = append(g.mountInfos, mountInfo{
-		pid:     pid,
-		srcPath: g.decryptInfo.cipherDir,
-		dstPath: g.decryptInfo.plainDir,
+		pid:       cmd.Process.Pid,
+		srcPath:   g.decryptInfo.cipherDir,
+		dstPath:   g.decryptInfo.plainDir,
+		mountType: GOCRYPTFS,
 	})
 
 	// step 4. mount the plain squash image
@@ -216,16 +249,17 @@ func (g *gocryptfsFeature) Mount(params *image.MountParams, mfunc image.MountFun
 		return err
 	}
 
-	go checkMountInfo(oldDest, ch)
+	go CheckMountInfo(oldDest, ch)
 	err = <-ch
 	if err != nil {
 		return err
 	}
 
 	g.mountInfos = append(g.mountInfos, mountInfo{
-		pid:     cmd.Process.Pid,
-		srcPath: source,
-		dstPath: oldDest,
+		pid:       cmd.Process.Pid,
+		srcPath:   source,
+		dstPath:   oldDest,
+		mountType: SQUASHFS,
 	})
 
 	for _, mountInfo := range g.mountInfos {
@@ -260,124 +294,27 @@ func (g *gocryptfsFeature) cmdStart(cmdPrefix []string, sysAttr *syscall.SysProc
 }
 
 func (g *gocryptfsFeature) stop(target string, kill bool) error {
-	if len(g.mountInfos) != 3 {
+	// not mounted using squashfuse or gocryptfs
+	if len(g.mountInfos) == 0 {
 		return nil
 	}
 
-	// not our target
-	if g.mountInfos[2].dstPath != target {
-		return nil
+	// normal case
+	if len(g.mountInfos) == 3 {
+		// not our target
+		if g.mountInfos[2].dstPath != target {
+			return nil
+		}
 	}
 
 	sylog.Debugf("gocryptfsFeature stop is called, target: %s, kill: %t, mountInfos: %v", target, kill, g.mountInfos)
-	defaultCleanFnGenerator := func(target string, pid int) func(bool) {
-		return func(kill bool) {
-			err := syscall.Unmount(target, 0)
-			if err != nil && err.(syscall.Errno) != syscall.EINVAL {
-				if err.(syscall.Errno) == syscall.EBUSY {
-					err = syscall.Unmount(target, syscall.MNT_DETACH)
-					if err != nil {
-						sylog.Fatalf("could not do lazy unmount on the mount point: %s, err: %v", target, err)
-						if kill {
-							err := syscall.Kill(pid, syscall.SIGTERM)
-							if err != nil {
-								sylog.Errorf("send SIGTERM signal to process: %d encounters error: %v", pid, err)
-							}
-
-							var ws syscall.WaitStatus
-							wpid, err := syscall.Wait4(pid, &ws, syscall.WNOHANG, nil)
-							if err != nil {
-								sylog.Errorf("could not retrieve the process status for pid: %d, err: %v", pid, err)
-							}
-
-							if wpid != 0 {
-								sylog.Errorf("process pid: %d exited with status: %v", pid, ws.ExitStatus())
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-
 	defer g.cleanFn()
-
+	// we need to unmount mount points by reverse order
 	for i := len(g.mountInfos) - 1; i >= 0; i-- {
-		defaultCleanFnGenerator(g.mountInfos[i].dstPath, g.mountInfos[i].pid)(kill)
+		defaultCleanFnGenerator(g.mountInfos[i].dstPath, g.mountInfos[i].pid, g.mountInfos[i].mountType)(kill)
 	}
 
 	return nil
-}
-
-type LinuxProcess struct {
-	pid     int
-	cmdline string
-}
-
-func getGocryptfsPid(substr string) (*LinuxProcess, error) {
-	d, err := os.Open("/proc")
-	if err != nil {
-		return nil, err
-	}
-	defer d.Close()
-
-	for {
-		names, err := d.Readdirnames(10)
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return nil, err
-		}
-
-		for _, name := range names {
-			// We only care if the name starts with a numeric
-			if name[0] < '0' || name[0] > '9' {
-				continue
-			}
-
-			// From this point forward, any errors we just ignore, because
-			// it might simply be that the process doesn't exist anymore.
-			pid, err := strconv.ParseInt(name, 10, 0)
-			if err != nil {
-				continue
-			}
-
-			content, err := os.ReadFile(fmt.Sprintf("/proc/%d/cmdline", pid))
-			if err != nil {
-				return nil, err
-			}
-			if strings.Contains(string(content), substr) {
-				return &LinuxProcess{
-					pid:     int(pid),
-					cmdline: string(content),
-				}, nil
-			}
-		}
-	}
-
-	return nil, fmt.Errorf("could not find any process containing the name: %s", substr)
-}
-
-func checkMountInfo(path string, ch chan error) {
-	iter := 0
-	for {
-		ok, err := mountPkg.Mounted(path)
-		if ok {
-			ch <- nil
-			break
-		}
-		if err != nil {
-			ch <- err
-			break
-		}
-		time.Sleep(1 * time.Second)
-		iter++
-		if iter >= 10 {
-			ch <- fmt.Errorf("timeout to check mount info for target path: %s, timeout limit: %d s", path, iter)
-			break
-		}
-	}
 }
 
 func (d *gocryptfsDriver) Features() image.DriverFeature {
@@ -422,6 +359,98 @@ func (d *gocryptfsDriver) Stop(target string) error {
 	return nil
 }
 
+func (d *gocryptfsDriver) GetDriverName() string {
+	return gocryptfsDriverName
+}
+
+func CheckMountInfo(path string, ch chan error) {
+	iter := 0
+	for {
+		ok, err := mountPkg.Mounted(path)
+		if ok {
+			ch <- nil
+			break
+		}
+		if err != nil {
+			ch <- err
+			break
+		}
+		time.Sleep(1 * time.Second)
+		iter++
+		if iter >= 10 {
+			ch <- fmt.Errorf("timeout to check mount info for target path: %s, timeout limit: %d s", path, iter)
+			break
+		}
+	}
+}
+
+func GetGocryptfsPid(substr string) (int, error) {
+	d, err := os.Open("/proc")
+	if err != nil {
+		return -1, err
+	}
+	defer d.Close()
+	for {
+		names, err := d.Readdirnames(10)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return -1, err
+		}
+
+		for _, name := range names {
+			// We only care if the name starts with a numeric
+			if name[0] < '0' || name[0] > '9' {
+				continue
+			}
+
+			// From this point forward, any errors we just ignore, because
+			// it might simply be that the process doesn't exist anymore.
+			pid, err := strconv.ParseInt(name, 10, 0)
+			if err != nil {
+				continue
+			}
+
+			content, err := os.ReadFile(fmt.Sprintf("/proc/%d/cmdline", pid))
+			if err != nil {
+				return -1, err
+			}
+			if strings.Contains(string(content), substr) {
+				return int(pid), nil
+			}
+		}
+	}
+
+	return -1, fmt.Errorf("could not find any process containing the substr: %s", substr)
+}
+
+func KillProcess(pid int) error {
+	err := syscall.Kill(pid, syscall.SIGTERM)
+	if err != nil {
+		// child process not exit
+		if err.(syscall.Errno) == syscall.ECHILD {
+			return nil
+		}
+		return fmt.Errorf("send SIGTERM signal to process: %d encounters error: %v", pid, err)
+	}
+
+	var ws syscall.WaitStatus
+	wpid, err := syscall.Wait4(pid, &ws, syscall.WNOHANG, nil)
+	if err != nil {
+		// child process not exit
+		if err.(syscall.Errno) == syscall.ECHILD {
+			return nil
+		}
+		return fmt.Errorf("could not retrieve the process status for pid: %d, err: %v", pid, err)
+	}
+
+	if wpid != 0 {
+		return fmt.Errorf("process pid: %d exited with status: %v", pid, ws.ExitStatus())
+	}
+	return nil
+}
+
 func InitGocryptfsDriver(register bool, fileconf *apptainerconf.File, desiredFeatures image.DriverFeature) error {
 	var gocryptfsFeature gocryptfsFeature
 	gocryptfsFeature.init("gocryptfs", "use gocryptfs", desiredFeatures&image.ImageFeature)
@@ -432,8 +461,4 @@ func InitGocryptfsDriver(register bool, fileconf *apptainerconf.File, desiredFea
 	}
 
 	return nil
-}
-
-func (d *gocryptfsDriver) GetDriverName() string {
-	return gocryptfsDriverName
 }

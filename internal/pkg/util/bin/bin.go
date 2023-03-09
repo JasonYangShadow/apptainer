@@ -69,7 +69,8 @@ func FindBin(name string) (path string, err error) {
 		"unsquashfs",
 		"yum",
 		"zypper",
-		"gocryptfs":
+		"gocryptfs",
+		"fusermount":
 		return findOnPath(name, false)
 	}
 	return "", fmt.Errorf("unknown executable name %q", name)
