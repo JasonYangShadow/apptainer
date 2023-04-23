@@ -17,6 +17,7 @@ import (
 	"net/http/httptest"
 	"path"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/apptainer/apptainer/e2e/internal/e2e"
@@ -42,7 +43,7 @@ func prepTest(t *testing.T, testEnv e2e.TestEnv, testName string, cacheParentDir
 	// at the start of our test - we expect to pull it again and then see it
 	// appear in the cache.
 	if fs.IsFile(imagePath) {
-		ensureNotCached(t, testName, srv.URL, cacheParentDir)
+		ensureNotCached(t, testName, srv.URL, cacheParentDir, runtime.GOARCH)
 	}
 
 	testEnv.UnprivCacheDir = cacheParentDir
@@ -54,7 +55,7 @@ func prepTest(t *testing.T, testEnv e2e.TestEnv, testName string, cacheParentDir
 		e2e.ExpectExit(0),
 	)
 
-	ensureCached(t, testName, srv.URL, cacheParentDir)
+	ensureCached(t, testName, srv.URL, cacheParentDir, runtime.GOARCH)
 	return srv.URL, cleanup
 }
 
@@ -154,7 +155,7 @@ func (c cacheTests) testNoninteractiveCacheCmds(t *testing.T) {
 		)
 
 		if tt.needImage && tt.expectedEmptyCache {
-			ensureNotCached(t, tt.name, imageURL, cacheDir)
+			ensureNotCached(t, tt.name, imageURL, cacheDir, runtime.GOARCH)
 		}
 	}
 }
@@ -263,22 +264,93 @@ func (c cacheTests) testInteractiveCacheCmds(t *testing.T) {
 
 		// Check the content of the cache
 		if tc.expectedEmptyCache {
-			ensureNotCached(t, tc.name, imageURL, cacheDir)
+			ensureNotCached(t, tc.name, imageURL, cacheDir, runtime.GOARCH)
 		} else {
-			ensureCached(t, tc.name, imageURL, cacheDir)
+			ensureCached(t, tc.name, imageURL, cacheDir, runtime.GOARCH)
+		}
+	}
+}
+
+// https://github.com/apptainer/apptainer/issues/886
+// e.g. cache supports arm64, amd64...
+func (c cacheTests) testMutipleArchCache(t *testing.T) {
+	archs := [2]string{"amd64", "arm64"}
+	tests := []struct {
+		name               string
+		options            []string
+		needImage          bool
+		expectedEmptyCache bool
+		expectedOutput     string
+		arch               string
+		exit               int
+	}{
+		{
+			name:               "clean force",
+			options:            []string{"clean", "--force"},
+			expectedOutput:     "",
+			needImage:          true,
+			expectedEmptyCache: true,
+			arch:               "amd64",
+			exit:               0,
+		},
+		{
+			name:               "clean force",
+			options:            []string{"clean", "--force"},
+			expectedOutput:     "",
+			needImage:          true,
+			expectedEmptyCache: true,
+			arch:               "arm64",
+			exit:               0,
+		},
+	}
+
+	// A directory where we store the image and used by separate commands
+	tempDir, imgStoreCleanup := e2e.MakeTempDir(t, "", "", "image store")
+	defer imgStoreCleanup(t)
+	imagePath := filepath.Join(tempDir, imgName)
+
+	for _, tt := range tests {
+		// Each test get its own clean cache directory
+		cacheDir, cleanup := e2e.MakeCacheDir(t, "")
+		defer cleanup(t)
+		_, err := cache.New(cache.Config{ParentDir: cacheDir, Arch: tt.arch})
+		if err != nil {
+			t.Fatalf("Could not create image cache handle: %v", err)
+		}
+
+		imageURL := ""
+		if tt.needImage {
+			var srvCleanup func()
+			imageURL, srvCleanup = prepTest(t, c.env, tt.name, cacheDir, imagePath)
+			defer srvCleanup()
+		}
+
+		c.env.UnprivCacheDir = cacheDir
+		c.env.RunApptainer(
+			t,
+			e2e.AsSubtest(tt.name),
+			e2e.WithProfile(e2e.UserProfile),
+			e2e.WithCommand("cache"),
+			e2e.WithArgs(tt.options...),
+			e2e.ExpectExit(tt.exit),
+		)
+
+		if tt.needImage && tt.expectedEmptyCache {
+			ensureNotCached(t, tt.name, imageURL, cacheDir, archs[0])
+			ensureNotCached(t, tt.name, imageURL, cacheDir, archs[1])
 		}
 	}
 }
 
 // ensureNotCached checks the entry related to an image is not in the cache
-func ensureNotCached(t *testing.T, testName string, imageURL string, cacheParentDir string) {
+func ensureNotCached(t *testing.T, testName string, imageURL string, cacheParentDir string, arch string) {
 	shasum, err := netHash(imageURL)
 	if err != nil {
 		t.Fatalf("couldn't compute hash of image %s: %v", imageURL, err)
 	}
 
 	// Where the cached image should be
-	cacheImagePath := path.Join(cacheParentDir, "cache", "net", shasum)
+	cacheImagePath := path.Join(cacheParentDir, "cache", arch, "net", shasum)
 
 	// The image file shouldn't be present
 	if e2e.PathExists(t, cacheImagePath) {
@@ -287,14 +359,14 @@ func ensureNotCached(t *testing.T, testName string, imageURL string, cacheParent
 }
 
 // ensureCached checks the entry related to an image is really in the cache
-func ensureCached(t *testing.T, testName string, imageURL string, cacheParentDir string) {
+func ensureCached(t *testing.T, testName string, imageURL string, cacheParentDir string, arch string) {
 	shasum, err := netHash(imageURL)
 	if err != nil {
 		t.Fatalf("couldn't compute hash of image %s: %v", imageURL, err)
 	}
 
 	// Where the cached image should be
-	cacheImagePath := path.Join(cacheParentDir, "cache", "net", shasum)
+	cacheImagePath := path.Join(cacheParentDir, "cache", arch, "net", shasum)
 
 	// The image file shouldn't be present
 	if !e2e.PathExists(t, cacheImagePath) {
@@ -332,5 +404,6 @@ func E2ETests(env e2e.TestEnv) testhelper.Tests {
 		"non-interactive commands": np(c.testNoninteractiveCacheCmds),
 		"issue5097":                np(c.issue5097),
 		"issue5350":                np(c.issue5350),
+		"issue886":                 np(c.testMutipleArchCache),
 	}
 }

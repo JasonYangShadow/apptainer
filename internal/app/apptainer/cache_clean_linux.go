@@ -26,7 +26,7 @@ func cleanCache(imgCache *cache.Handle, cacheType string, dryRun bool, days int)
 	if imgCache == nil {
 		return fmt.Errorf("invalid image cache handle")
 	}
-	return imgCache.CleanCache(cacheType, dryRun, days)
+	return imgCache.CleanMultipleArchCache(cacheType, dryRun, days)
 }
 
 // CleanApptainerCache is the main function that drives all these

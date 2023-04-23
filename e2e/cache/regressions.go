@@ -15,6 +15,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/apptainer/apptainer/e2e/internal/e2e"
@@ -52,7 +53,7 @@ func (c cacheTests) issue5097(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Could not calculate hash of test image: %v", err)
 	}
-	cachePath := path.Join(imgCacheDir, "cache", "net", hash)
+	cachePath := path.Join(imgCacheDir, "cache", runtime.GOARCH, "net", hash)
 	err = os.Remove(cachePath)
 	if err != nil {
 		t.Fatalf("Could not remove cached image '%s': %v", cachePath, err)

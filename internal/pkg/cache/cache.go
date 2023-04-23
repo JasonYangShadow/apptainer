@@ -16,6 +16,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"time"
 
@@ -75,6 +76,8 @@ type Config struct {
 	ParentDir string
 	// Disable specifies whether the user request the cache to be disabled by default.
 	Disable bool
+	// Architecture
+	Arch string
 }
 
 // Handle is an structure representing the image cache, it's location and subdirectories
@@ -162,9 +165,32 @@ func (h *Handle) GetEntry(cacheType string, hash string) (e *Entry, err error) {
 	return e, nil
 }
 
-func (h *Handle) CleanCache(cacheType string, dryRun bool, days int) (err error) {
-	dir := h.getCacheTypeDir(cacheType)
+func (h *Handle) CleanMultipleArchCache(cacheType string, dryRun bool, days int) (err error) {
+	parentDir := filepath.Dir(h.rootDir)
+	var archs []string
+	entries, err := os.ReadDir(parentDir)
+	if err != nil {
+		return err
+	}
 
+	for _, entry := range entries {
+		if entry.IsDir() {
+			archs = append(archs, entry.Name())
+		}
+	}
+
+	for _, arch := range archs {
+		dir := path.Join(parentDir, arch, cacheType)
+		err = h.cleanCache(dir, cacheType, dryRun, days)
+		if err != nil {
+			return
+		}
+	}
+
+	return
+}
+
+func (h *Handle) cleanCache(dir, cacheType string, dryRun bool, days int) (err error) {
 	files, err := os.ReadDir(dir)
 	if (err != nil && os.IsNotExist(err)) || len(files) == 0 {
 		sylog.Infof("No cached files to remove at %s", dir)
@@ -268,7 +294,11 @@ func New(cfg Config) (h *Handle, err error) {
 	}
 
 	// Initialize the root directory of the cache
-	rootDir := path.Join(parentDir, SubDirName)
+	// https://github.com/apptainer/apptainer/issues/886
+	if cfg.Arch == "" {
+		cfg.Arch = runtime.GOARCH
+	}
+	rootDir := path.Join(parentDir, SubDirName, cfg.Arch)
 	h.rootDir = rootDir
 	if err = initCacheDir(rootDir); err != nil {
 		return nil, fmt.Errorf("failed initializing caching directory: %s", err)
