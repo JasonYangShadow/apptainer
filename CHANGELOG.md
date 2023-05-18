@@ -63,6 +63,7 @@ For older changes see the [archived Singularity change log](https://github.com/a
 - The `instance start` command now accepts an optional `--app <name>` argument which
   invokes start script within the `%appstart <name>` section in the definition file.
   The `instance stop` command still only requires the instance name.
+- Templating Support for Definition File.
 
 ### Other changes
 

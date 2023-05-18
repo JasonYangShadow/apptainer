@@ -11,11 +11,15 @@
 package cli
 
 import (
+	"bufio"
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	osExec "os/exec"
+	"regexp"
 	"strconv"
 	"strings"
 	"syscall"
@@ -288,6 +292,11 @@ func runBuildLocal(ctx context.Context, cmd *cobra.Command, dst, spec string, fa
 		}
 	}
 
+	defs, err = processDefs(buildArgs.buildVarArgs, buildArgs.buildVarArgFile, defs)
+	if err != nil {
+		sylog.Fatalf("While processing the definition file: %v", err)
+	}
+
 	// We only need to initialize the library client if we have a library source
 	// in our definition file.
 	if hasLibrary {
@@ -467,4 +476,147 @@ func getEncryptionMaterial(cmd *cobra.Command) (*cryptkey.KeyInfo, error) {
 	}
 
 	return nil, nil
+}
+
+func processDefs(args []string, argFile string, defs []types.Definition) ([]types.Definition, error) {
+	// --build-arg and content in --build-arg-file are applied to all stages
+	buildArgMap, err := readBuildArgs(args, argFile)
+	if err != nil {
+		return defs, err
+	}
+
+	// start replacing the variable defined in the definition file
+	for idx, def := range defs {
+		d, err := updateDef(&def, buildArgMap)
+		if err != nil {
+			return defs, fmt.Errorf("while updating the definition file with build args, err: %w", err)
+		}
+		defs[idx] = *d
+	}
+
+	types.UpdateDefinitionRaw(defs)
+
+	return defs, nil
+}
+
+func readBuildArgs(args []string, argFile string) (map[string]string, error) {
+	buildVarsMap := make(map[string]string)
+	if argFile != "" {
+		file, err := os.Open(argFile)
+		if err != nil {
+			return buildVarsMap, fmt.Errorf("while opening the file %s, err: %w", argFile, err)
+		}
+		defer file.Close()
+
+		scanner := bufio.NewScanner(file)
+		for scanner.Scan() {
+			text := scanner.Text()
+			k, v, err := getKeyVal(text)
+			if err != nil {
+				sylog.Warningf("Skipping the line, err: %v", err)
+				continue
+			}
+
+			buildVarsMap[k] = v
+		}
+
+		if err := scanner.Err(); err != nil {
+			return buildVarsMap, fmt.Errorf("while scanning the content of target file %s, err: %w", argFile, err)
+		}
+	}
+
+	for _, arg := range args {
+		k, v, err := getKeyVal(arg)
+		if err != nil {
+			sylog.Warningf("Skipping the line, err: %v", err)
+			continue
+		}
+
+		buildVarsMap[k] = v
+	}
+
+	return buildVarsMap, nil
+}
+
+func getKeyVal(text string) (string, string, error) {
+	if !strings.Contains(text, "=") {
+		return "", "", fmt.Errorf("text: %s is not `key=value` pair format", text)
+	}
+
+	matches := strings.SplitN(text, "=", -1)
+	if len(matches) != 2 {
+		return "", "", fmt.Errorf("text: %s is not `key=value` pair format", text)
+	}
+
+	key := strings.TrimSpace(matches[0])
+	if key == "" {
+		return "", "", fmt.Errorf("key field is missing in text: %s", text)
+	}
+	val := strings.TrimSpace(matches[1])
+	if val == "" {
+		return "", "", fmt.Errorf("value field is missing in text: %s", text)
+	}
+	return key, val, nil
+}
+
+var errNoChange = errors.New("text no change")
+
+func replaceVar(text []byte, argsMap map[string]string, defaultMap map[string]string) ([]byte, error) {
+	r := regexp.MustCompile(`{{\s*(\w*)\s*}}`)
+	matches := r.FindAllSubmatch(text, -1)
+	if matches == nil {
+		return text, errNoChange
+	}
+
+	for _, match := range matches {
+		if val, ok := argsMap[string(match[1])]; ok {
+			text = bytes.ReplaceAll(text, match[0], []byte(val))
+		} else if val, ok := defaultMap[string(match[1])]; ok {
+			text = bytes.ReplaceAll(text, match[0], []byte(val))
+		} else {
+			return text, fmt.Errorf("build var %s is not defined through either --build-arg (--build-arg-file) or default section", match[1])
+		}
+	}
+
+	return text, nil
+}
+
+func updateDef(def *types.Definition, argsMap map[string]string) (*types.Definition, error) {
+	defaultMap := make(map[string]string)
+	if def.BuildData.Default.Script != "" {
+		scanner := bufio.NewScanner(strings.NewReader(def.BuildData.Default.Script))
+		for scanner.Scan() {
+			text := strings.TrimSpace(scanner.Text())
+			if text != "" && !strings.HasPrefix(text, "#") {
+				k, v, err := getKeyVal(text)
+				if err != nil {
+					sylog.Warningf("Skipping the line, err: %v", err)
+					continue
+				}
+				defaultMap[k] = v
+			}
+		}
+
+		if scanner.Err() != nil {
+			return nil, fmt.Errorf("while scanning string from default section, err: %w", scanner.Err())
+		}
+	}
+
+	data, err := json.Marshal(def)
+	if err != nil {
+		return nil, fmt.Errorf("while marshaling the Definition struct, err: %w", err)
+	}
+
+	content, err := replaceVar(data, argsMap, defaultMap)
+	if err != nil && err != errNoChange {
+		return nil, fmt.Errorf("while replacing var marshaled definition struct, err: %w", err)
+	}
+
+	var d types.Definition
+	err = json.Unmarshal([]byte(content), &d)
+	if err != nil {
+		return nil, fmt.Errorf("while unmarshal into definition struct, err: %w", err)
+	}
+
+	return &d, nil
 }

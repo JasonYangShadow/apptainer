@@ -1,0 +1,25 @@
+Bootstrap: docker
+From: alpine:{{ OS_VER }}
+Stage: build
+
+%default
+    OS_VER=3.17
+    TARGET_FILE=hello
+    DEMO=a demo
+    AUTHOR=jason
+
+%post
+    apk add --no-cache wget
+
+%environment
+    export OS_VER={{ OS_VER }}
+
+%runscript
+    echo "Container was created $NOW"
+    wget --help
+
+%labels
+    Author {{ AUTHOR }}
+
+%help
+    This is {{ DEMO }} for templating definition file
