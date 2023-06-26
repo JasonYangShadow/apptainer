@@ -105,6 +105,7 @@ var singSilentFlag = cmdline.Flag{
 	Name:         "silent",
 	ShortHand:    "s",
 	Usage:        "only print errors",
+	EnvKeys:      []string{"SILENT"},
 }
 
 // -q|--quiet
@@ -115,6 +116,7 @@ var singQuietFlag = cmdline.Flag{
 	Name:         "quiet",
 	ShortHand:    "q",
 	Usage:        "suppress normal output",
+	EnvKeys:      []string{"QUIET"},
 }
 
 // -v|--verbose
@@ -125,6 +127,7 @@ var singVerboseFlag = cmdline.Flag{
 	Name:         "verbose",
 	ShortHand:    "v",
 	Usage:        "print additional information",
+	EnvKeys:      []string{"VERBOSE"},
 }
 
 // --docker-username
@@ -468,6 +471,7 @@ func migrateGPGPrivate(sypgpDir, legacySypgpDir string) {
 }
 
 func persistentPreRun(cmd *cobra.Command, args []string) error {
+	setSylogMessageLevel()
 	sylog.Debugf("Apptainer version: %s", buildcfg.PACKAGE_VERSION)
 
 	if cmd.CalledAs() == "confgen" {

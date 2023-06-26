@@ -14,6 +14,8 @@ import (
 	"os"
 	"testing"
 	"time"
+
+	"github.com/apptainer/apptainer/pkg/sylog"
 )
 
 func TestCreateConfDir(t *testing.T) {
@@ -38,6 +40,50 @@ func TestCreateConfDir(t *testing.T) {
 		handleConfDir(dir, "")
 		if _, err := os.Stat(dir + "/foo"); os.IsNotExist(err) {
 			t.Errorf("inadvertently overwrote existing directory %s", dir)
+		}
+	}
+}
+
+func TestChangeLogLevelViaEnvVariables(t *testing.T) {
+	tests := []struct {
+		Env   string
+		Level int
+	}{
+		{
+			Env:   "APPTAINER_SILENT",
+			Level: -3,
+		},
+		{
+			Env:   "APPTAINER_QUIET",
+			Level: -1,
+		},
+		{
+			Env:   "APPTAINER_VERBOSE",
+			Level: 4,
+		},
+		{
+			Env:   "APPTAINER_DEBUG",
+			Level: 5,
+		},
+	}
+
+	Init(false)
+	// initialize apptainerCmd
+	for _, test := range tests {
+		err := os.Setenv(test.Env, "1")
+		if err != nil {
+			t.Error(err)
+		}
+		defer os.Unsetenv(test.Env)
+
+		// call persistentPreRunE to update cmd
+		err = apptainerCmd.PersistentPreRunE(apptainerCmd, []string{})
+		if err != nil {
+			t.Error(err)
+		}
+
+		if sylog.GetLevel() != test.Level {
+			t.Errorf("actual log level: %d, expected log level: %d", sylog.GetLevel(), test.Level)
 		}
 	}
 }

@@ -26,6 +26,10 @@ For older changes see the [archived Singularity change log](https://github.com/a
 - Added ability to set a custom config directory via the new
   `APPTAINER_CONFIGDIR` environment variable.
 
+### Other changes
+
+- Able to change log level through environment variables.
+
 ## Changes since last pre-release
 
 - Upgrade gocryptfs to version 2.4.0, removing the need for fusermount from
