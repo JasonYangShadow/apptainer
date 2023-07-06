@@ -267,9 +267,17 @@ func runBuildLocal(ctx context.Context, cmd *cobra.Command, dst, spec string, fa
 	if err != nil {
 		sylog.Fatalf("While processing the definition file: %v", err)
 	}
-	defs, err := build.MakeAllDefs(spec, buildArgsMap)
+	defs, unUsedArgs, err := build.MakeAllDefs(spec, buildArgsMap)
 	if err != nil {
 		sylog.Fatalf("Unable to build from %s: %v", spec, err)
+	}
+
+	if len(unUsedArgs) > 0 {
+		if buildArgs.buildArgsUnusedWarn {
+			sylog.Warningf("Unused build args: %s", strings.Join(unUsedArgs, " "))
+		} else {
+			sylog.Fatalf("unused build args: %s. Use option --warn-unused-build-args to show a warning instead of a fatal message", strings.Join(unUsedArgs, " "))
+		}
 	}
 
 	authToken := ""
