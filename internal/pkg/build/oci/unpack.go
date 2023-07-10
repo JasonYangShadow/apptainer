@@ -7,33 +7,27 @@
 // LICENSE.md file distributed with the sources of this project regarding your
 // rights to use or distribute this software.
 
-// TODO(ian): The build package should be refactored to make each conveyorpacker
-// its own separate package. With that change, this file should be grouped with the
-// OCIConveyorPacker code
-
-package sources
+package oci
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 
 	apexlog "github.com/apex/log"
 	"github.com/apptainer/apptainer/internal/pkg/util/fs"
-	sytypes "github.com/apptainer/apptainer/pkg/build/types"
 	"github.com/apptainer/apptainer/pkg/sylog"
 	"github.com/apptainer/apptainer/pkg/util/namespaces"
-	"github.com/containers/image/v5/types"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/umoci"
 	umocilayer "github.com/opencontainers/umoci/oci/layer"
 	"github.com/opencontainers/umoci/pkg/idtools"
 )
 
-// unpackRootfs extracts all of the layers of the given image reference into the rootfs of the provided bundle
-func unpackRootfs(ctx context.Context, b *sytypes.Bundle, tmpfsRef types.ImageReference, sysCtx *types.SystemContext) (err error) {
+// UnpackRootfs extracts all of the layers of the given image manifest from an
+// OCI layout into rootfsDir.
+func UnpackRootfs(ctx context.Context, layoutDir string, manifest imgspecv1.Manifest, destDir string) (err error) {
 	var mapOptions umocilayer.MapOptions
 
 	loggerLevel := sylog.GetLevel()
@@ -71,60 +65,67 @@ func unpackRootfs(ctx context.Context, b *sytypes.Bundle, tmpfsRef types.ImageRe
 		mapOptions.GIDMappings = append(mapOptions.GIDMappings, gidMap)
 	}
 
-	engineExt, err := umoci.OpenLayout(b.TmpDir)
+	engineExt, err := umoci.OpenLayout(layoutDir)
 	if err != nil {
 		return fmt.Errorf("error opening layout: %s", err)
 	}
 
-	// Obtain the manifest
-	imageSource, err := tmpfsRef.NewImageSource(ctx, sysCtx)
-	if err != nil {
-		return fmt.Errorf("error creating image source: %s", err)
-	}
-	manifestData, mediaType, err := imageSource.GetManifest(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("error obtaining manifest source: %s", err)
-	}
-	if mediaType != imgspecv1.MediaTypeImageManifest {
-		return fmt.Errorf("error verifying manifest media type: %s", mediaType)
-	}
-	var manifest imgspecv1.Manifest
-	json.Unmarshal(manifestData, &manifest)
-
 	// UnpackRootfs from umoci v0.4.2 expects a path to a non-existing directory
-	os.RemoveAll(b.RootfsPath)
+	os.RemoveAll(destDir)
 
 	// Unpack root filesystem
 	unpackOptions := umocilayer.UnpackOptions{MapOptions: mapOptions}
-	err = umocilayer.UnpackRootfs(ctx, engineExt, b.RootfsPath, manifest, &unpackOptions)
+	err = umocilayer.UnpackRootfs(ctx, engineExt, destDir, manifest, &unpackOptions)
 	if err != nil {
 		return fmt.Errorf("error unpacking rootfs: %s", err)
-	}
-
-	// If the `--fix-perms` flag was used, then modify the permissions so that
-	// content has owner rwX and we're done
-	if b.Opts.FixPerms {
-		sylog.Warningf("The --fix-perms option modifies the filesystem permissions on the resulting container.")
-		sylog.Debugf("Modifying permissions for file/directory owners")
-		return sytypes.FixPerms(b.RootfsPath)
-	}
-
-	// If `--fix-perms` was not used and this is a sandbox, scan for restrictive
-	// perms that would stop the user doing an `rm` without a chmod first,
-	// and warn if they exist
-	if b.Opts.SandboxTarget {
-		sylog.Debugf("Scanning for restrictive permissions")
-		return checkPerms(b.RootfsPath)
 	}
 
 	// No `--fix-perms` and no sandbox... we are fine
 	return err
 }
 
-// checkPerms will work through the rootfs of this bundle, and find if any
+// FixPerms will work through the rootfs of this bundle, making sure that all
+// files and directories have permissions set such that the owner can read,
+// modify, delete. This brings us to the situation of <=3.4
+func FixPerms(rootfs string) (err error) {
+	errors := 0
+	err = fs.PermWalk(rootfs, func(path string, f os.FileInfo, err error) error {
+		if err != nil {
+			sylog.Errorf("Unable to access rootfs path %s: %s", path, err)
+			errors++
+			return nil
+		}
+
+		switch mode := f.Mode(); {
+		// Directories must have the owner 'rx' bits to allow traversal and reading on move, and the 'w' bit
+		// so their content can be deleted by the user when the rootfs/sandbox is deleted
+		case mode.IsDir():
+			if err := os.Chmod(path, f.Mode().Perm()|0o700); err != nil {
+				sylog.Errorf("Error setting permission for %s: %s", path, err)
+				errors++
+			}
+		case mode.IsRegular():
+			// Regular files must have the owner 'r' bit so that everything can be read in order to
+			// copy or move the rootfs/sandbox around. Also, the `w` bit as the build does write into
+			// some files (e.g. resolv.conf) in the container rootfs.
+			if err := os.Chmod(path, f.Mode().Perm()|0o600); err != nil {
+				sylog.Errorf("Error setting permission for %s: %s", path, err)
+				errors++
+			}
+		}
+		return nil
+	})
+
+	if errors > 0 {
+		err = fmt.Errorf("%d errors were encountered when setting permissions", errors)
+	}
+	return err
+}
+
+// CheckPerms will work through the rootfs of this bundle, and find if any
 // directory does not have owner rwX - which may cause unexpected issues for a
 // user trying to look through, or delete a sandbox
-func checkPerms(rootfs string) (err error) {
+func CheckPerms(rootfs string) (err error) {
 	// This is a locally defined error we can bubble up to cancel our recursive
 	// structure.
 	errRestrictivePerm := errors.New("restrictive file permission found")
