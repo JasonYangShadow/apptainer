@@ -20,6 +20,7 @@ import (
 	"os/signal"
 	"os/user"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"text/template"
 
@@ -271,6 +272,11 @@ func addCmdInit(cmdInit func(*cmdline.CommandManager)) {
 func setSylogMessageLevel() {
 	var level int
 
+	l, err := strconv.Atoi(os.Getenv(sylog.MessageLevelEnv))
+	if err == nil {
+		level = l
+	}
+
 	if debug {
 		level = 5
 		// Propagate debug flag to nested `apptainer` calls.
@@ -282,7 +288,7 @@ func setSylogMessageLevel() {
 	} else if silent {
 		level = -3
 	} else {
-		level = 1
+		level = sylog.Max(level, 1)
 	}
 
 	color := true

@@ -20,7 +20,7 @@ import (
 	"strings"
 )
 
-const messageLevelEnv = "APPTAINER_MESSAGELEVEL"
+const MessageLevelEnv = "APPTAINER_MESSAGELEVEL"
 
 var messageColors = map[messageLevel]string{
 	FatalLevel: "\x1b[31m",
@@ -37,7 +37,7 @@ var (
 var logWriter = (io.Writer)(os.Stderr)
 
 func init() {
-	level, err := strconv.Atoi(os.Getenv(messageLevelEnv))
+	level, err := strconv.Atoi(os.Getenv(MessageLevelEnv))
 	if err == nil {
 		loggerLevel = messageLevel(level)
 	}
@@ -150,7 +150,7 @@ func GetLevel() int {
 // GetEnvVar returns a formatted environment variable string which
 // can later be interpreted by init() in a child proc
 func GetEnvVar() string {
-	return fmt.Sprintf("%s=%d", messageLevelEnv, loggerLevel)
+	return fmt.Sprintf("%s=%d", MessageLevelEnv, loggerLevel)
 }
 
 // Writer returns an io.Writer to pass to an external packages logging utility.
@@ -186,4 +186,12 @@ func SetWriter(writer io.Writer) io.Writer {
 		logWriter = writer
 	}
 	return oldWriter
+}
+
+func Max(x, y int) int {
+	if x < y {
+		return y
+	}
+
+	return x
 }

@@ -14,12 +14,22 @@ package sylog
 import (
 	"io"
 	"os"
+	"strconv"
 )
+
+const MessageLevelEnv = "APPTAINER_MESSAGELEVEL"
 
 var (
 	noColorLevel messageLevel = 90
 	loggerLevel               = InfoLevel
 )
+
+func init() {
+	level, err := strconv.Atoi(os.Getenv(MessageLevelEnv))
+	if err == nil {
+		loggerLevel = messageLevel(level)
+	}
+}
 
 func getLoggerLevel() messageLevel {
 	if loggerLevel <= -noColorLevel {
@@ -92,3 +102,11 @@ func (t DebugLogger) Log(v ...interface{}) {}
 
 // Logf is a dummy function doing nothing.
 func (t DebugLogger) Logf(format string, v ...interface{}) {}
+
+func Max(x, y int) int {
+	if x < y {
+		return y
+	}
+
+	return x
+}
