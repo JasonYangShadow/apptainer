@@ -845,6 +845,12 @@ The dependencies and their licenses are as follows:
 
 **License URL:** <https://github.com/mattn/go-runewidth/blob/master/LICENSE>
 
+## github.com/mitchellh/colorstring
+
+**License:** MIT
+
+**License URL:** <https://github.com/mitchellh/colorstring/blob/master/LICENSE>
+
 ## github.com/mitchellh/mapstructure
 
 **License:** MIT
@@ -874,6 +880,12 @@ The dependencies and their licenses are as follows:
 **License:** MIT
 
 **License URL:** <https://github.com/samber/lo/blob/master/LICENSE>
+
+## github.com/schollz/progressbar/v3
+
+**License:** MIT
+
+**License URL:** <https://github.com/schollz/progressbar/blob/master/v3/LICENSE>
 
 ## github.com/secure-systems-lab/go-securesystemslib/dsse
 

@@ -213,7 +213,7 @@ func UploadImage(ctx context.Context, path, ref string, ociAuth *ocitypes.Docker
 		sylog.Infof("No tag or digest found, using default: %s", SifDefaultTag)
 	}
 
-	resolver, err := getResolver(ctx, ociAuth, noHTTPS, true)
+	resolver, err := getOrasResolver(ctx, ociAuth, noHTTPS, true)
 	if err != nil {
 		return fmt.Errorf("while getting resolver: %s", err)
 	}
