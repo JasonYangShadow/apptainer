@@ -12,6 +12,7 @@ package config
 import (
 	"encoding/json"
 
+	"github.com/apptainer/apptainer/internal/pkg/metric"
 	"github.com/apptainer/apptainer/pkg/plugin"
 )
 
@@ -25,6 +26,9 @@ type Common struct {
 
 	// PluginConfig is the JSON raw representation of the plugin configurations.
 	PluginConfig map[string]json.RawMessage `json:"plugin"`
+
+	// Pushgateway connection, this field will be ignored
+	PushgatewaySocket *metric.Pushgateway `json:"-"`
 }
 
 // GetPluginConfig retrieves the configuration for the corresponding plugin.

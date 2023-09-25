@@ -42,6 +42,12 @@ import (
 // https://github.com/opencontainers/runtime-spec/blob/master/runtime.md#lifecycle.
 // CleanupContainer is performing step 8/9 here.
 func (e *EngineOperations) CleanupContainer(ctx context.Context, fatal error, status syscall.WaitStatus) error {
+	// close the connection between apptainer and pushgateway
+	if e.CommonConfig.PushgatewaySocket != nil {
+		if err := e.CommonConfig.PushgatewaySocket.Close(); err != nil {
+			sylog.Warningf("failed to close the aptainer connection with pushgateway: %v", err)
+		}
+	}
 	// firstly stop all fuse drivers before any image removal
 	// by image driver interruption or image cleanup for hybrid
 	// fakeroot workflow

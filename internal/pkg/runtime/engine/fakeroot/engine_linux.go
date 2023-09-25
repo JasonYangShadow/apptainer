@@ -382,6 +382,12 @@ func (e *EngineOperations) MonitorContainer(pid int, signals chan os.Signal) (sy
 
 // CleanupContainer does nothing for the fakeroot engine.
 func (e *EngineOperations) CleanupContainer(context.Context, error, syscall.WaitStatus) error {
+	// close the connection between apptainer and pushgateway
+	if e.CommonConfig.PushgatewaySocket != nil {
+		if err := e.CommonConfig.PushgatewaySocket.Close(); err != nil {
+			sylog.Warningf("failed to close the aptainer connection with pushgateway: %v", err)
+		}
+	}
 	return nil
 }
 
