@@ -18,10 +18,10 @@ func New() (*Pushgateway, error) {
 	socketPath := ""
 	configFile := apptainerconf.GetCurrentConfig()
 	if configFile != nil {
-		socketPath = apptainerconf.GetCurrentConfig().PushgatewaySocketPath
+		socketPath = apptainerconf.GetCurrentConfig().ApptheusSocketPath
 	}
 	if socketPath == "" {
-		socketPath = filepath.Join(syfs.ConfigDir(), "pushgateway.socket")
+		socketPath = filepath.Join(syfs.ConfigDir(), "gateway.sock")
 	}
 	conn, err := net.Dial(protocol, socketPath)
 	if err != nil {
