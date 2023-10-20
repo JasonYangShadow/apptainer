@@ -7,10 +7,53 @@ For older changes see the [archived Singularity change log](https://github.com/a
 
 ## v1.2.x - \[TBA\]
 
-- Added `libnvidia-nvvm` to `nvliblist.conf`. Newer
-  NVIDIA Drivers (known with >= 525.85.05) require this lib to compile
-  OpenCL programs against NVIDIA GPUs, i.e. `libnvidia-opencl` depends on
-  `libnvidia-nvvm.`
+### Changed defaults / behaviours
+
+- `--cwd` is now the preferred form of the flag for setting the container's
+  working directory, though `--pwd` is still supported for compatibility.
+- When building RPM, we will now use `/var/lib/apptainer` (rather than
+  `/var/apptainer`) to store local state files.
+- The way --home is handled when running as root (e.g. `sudo apptainer`) or
+  with `--fakeroot` has changed. Previously, we were only modifying the `HOME`
+  environment variable in these cases, while leaving the container's
+  `/etc/passwd` file unchanged (with its homedir field pointing to `/root`,
+  regardless of the value passed to `--home`). With this change, both value of
+  `HOME` and the contents of `/etc/passwd` in the container will reflect the
+  value passed to `--home` if the container is readonly.  If the container
+  is writable, the `/etc/passwd` file is left alone because it can interfere
+  with commands that want to modify it.
+- The `--vm` and related flags to start apptainer inside a VM have been
+  removed. This functionality was related to the retired Singularity Desktop /
+  SyOS projects.
+- The keyserver-related commands that were under `remote` have been moved to
+  their own, dedicated `keyserver` command. Run `apptainer help keyserver` for
+  more information.
+- The commands related to OCI/Docker registries that were under `remote` have
+  been moved to their own, dedicated `registry` command. Run
+  `apptainer help registry` for more information.
+- The the `remote list` subcommand now outputs only remote endpoints (with
+  keyservers and OCI/Docker registries having been moved to separate commands),
+  and the output has been streamlined.
+- Adding a new remote endpoint using the `apptainer remote add` command will
+  now set the new endpoint as default. This behavior can be suppressed by
+  supplying the `--no-default` (or `-n`) flag to `remote add`.
+- Skip parsing build definition file template variables after comments
+  beginning with a hash symbol.
+
+### New Features & Functionality
+
+- The `remote status` command will now print the username, realname, and email
+  of the logged-in user, if available.
+
+### Developer / API
+
+- Changes in pkg/build/types.Definition struct. New `.FullRaw` field introduced,
+  which always contains the raw data for the entire definition file. Behavior of
+  `.Raw` field has changed: for multi-stage builds parsed with
+  pkg/build/types/parser.All(), `.Raw` contains the raw content of a single
+  build stage. Otherwise, it is equal to `.FullRaw`.
+
+## Changes for v1.2.x
 
 ## v1.2.4 - \[2023-10-10\]
 
