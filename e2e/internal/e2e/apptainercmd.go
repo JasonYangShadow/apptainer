@@ -431,26 +431,11 @@ func ExpectExit(code int, resultOps ...ApptainerCmdResultOp) ApptainerCmdOp {
 			return
 		}
 
-		cause := errors.Cause(s.waitErr)
-		switch x := cause.(type) {
-		case *exec.ExitError:
-			if status, ok := x.Sys().(syscall.WaitStatus); ok {
-				exitCode := status.ExitStatus()
-				if status.Signaled() {
-					s := status.Signal()
-					exitCode = 128 + int(s)
-				}
-				if code != exitCode {
-					t.Logf("\n%q output:\n%s%s\n", r.FullCmd, string(r.Stderr), string(r.Stdout))
-					t.Errorf("got %d as exit code and was expecting %d: %+v", exitCode, code, s.waitErr)
-					return
-				}
-			}
-		default:
-			if s.waitErr != nil {
-				t.Errorf("command execution of %q failed: %+v", r.FullCmd, s.waitErr)
-				return
-			}
+		exitCode, success := s.getReturnCode()
+		if success && code != exitCode {
+			t.Logf("\n%q output:\n%s%s\n", r.FullCmd, string(r.Stderr), string(r.Stdout))
+			t.Errorf("got %d as exit code and was expecting %d: %+v", exitCode, code, s.waitErr)
+			return
 		}
 
 		if code == 0 && s.waitErr != nil {
@@ -469,6 +454,57 @@ func ExpectExit(code int, resultOps ...ApptainerCmdResultOp) ApptainerCmdOp {
 			}
 		}
 	}
+}
+
+func SkipExit(resultOps ...ApptainerCmdResultOp) ApptainerCmdOp {
+	return func(s *apptainerCmd) {
+		if s.resultFn == nil {
+			s.resultFn = SkipExit()
+			return
+		}
+
+		r := s.result
+		t := s.t
+
+		t.Helper()
+
+		if t.Failed() {
+			return
+		}
+
+		exitCode, success := s.getReturnCode()
+		if success {
+			t.Logf("\n%q output:\n%s%s\n exitcode: %d\n", r.FullCmd, string(r.Stderr), string(r.Stdout), exitCode)
+		}
+
+		for _, op := range resultOps {
+			if op != nil {
+				op(t, r)
+			}
+		}
+	}
+}
+
+func (s *apptainerCmd) getReturnCode() (int, bool) {
+	if s.waitErr == nil {
+		return 0, true
+	}
+
+	cause := errors.Cause(s.waitErr)
+	switch x := cause.(type) {
+	case *exec.ExitError:
+		if status, ok := x.Sys().(syscall.WaitStatus); ok {
+			exitCode := status.ExitStatus()
+			if status.Signaled() {
+				s := status.Signal()
+				exitCode = 128 + int(s)
+			}
+			return exitCode, true
+		}
+	default:
+	}
+
+	return -1, false
 }
 
 // RunApptainer executes an Apptainer command within a test execution

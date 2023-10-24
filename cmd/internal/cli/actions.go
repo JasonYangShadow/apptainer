@@ -28,11 +28,13 @@ import (
 	"github.com/apptainer/apptainer/internal/pkg/util/env"
 	"github.com/apptainer/apptainer/internal/pkg/util/uri"
 	"github.com/apptainer/apptainer/pkg/sylog"
+	"github.com/apptainer/apptainer/pkg/util/fs/lock"
 	"github.com/spf13/cobra"
 )
 
 const (
-	defaultPath = "/bin:/usr/bin:/sbin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
+	defaultPath       = "/bin:/usr/bin:/sbin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
+	mpiInstancePrefix = "mpi_instance"
 )
 
 func getCacheHandle(cfg cache.Config) *cache.Handle {
@@ -174,9 +176,15 @@ var ExecCmd = &cobra.Command{
 	Args:                  cobra.MinimumNArgs(2),
 	PreRun:                actionPreRun,
 	Run: func(cmd *cobra.Command, args []string) {
-		a := append([]string{"/.singularity.d/actions/exec"}, args[1:]...)
-		if err := launchContainer(cmd, args[0], a, ""); err != nil {
-			sylog.Fatalf("%s", err)
+		if mpiMode {
+			if err := mpiLaunch(cmd, args, true); err != nil {
+				sylog.Fatalf("%s", err)
+			}
+		} else {
+			a := append([]string{"/.singularity.d/actions/exec"}, args[1:]...)
+			if err := launchContainer(cmd, args[0], a, "", -1); err != nil {
+				sylog.Fatalf("%s", err)
+			}
 		}
 	},
 
@@ -198,7 +206,7 @@ var ShellCmd = &cobra.Command{
 		}
 
 		a := []string{"/.singularity.d/actions/shell"}
-		if err := launchContainer(cmd, args[0], a, ""); err != nil {
+		if err := launchContainer(cmd, args[0], a, "", -1); err != nil {
 			sylog.Fatalf("%s", err)
 		}
 	},
@@ -216,9 +224,15 @@ var RunCmd = &cobra.Command{
 	Args:                  cobra.MinimumNArgs(1),
 	PreRun:                actionPreRun,
 	Run: func(cmd *cobra.Command, args []string) {
-		a := append([]string{"/.singularity.d/actions/run"}, args[1:]...)
-		if err := launchContainer(cmd, args[0], a, ""); err != nil {
-			sylog.Fatalf("%s", err)
+		if mpiMode {
+			if err := mpiLaunch(cmd, args, false); err != nil {
+				sylog.Fatalf("%s", err)
+			}
+		} else {
+			a := append([]string{"/.singularity.d/actions/run"}, args[1:]...)
+			if err := launchContainer(cmd, args[0], a, "", -1); err != nil {
+				sylog.Fatalf("%s", err)
+			}
 		}
 	},
 
@@ -236,7 +250,7 @@ var TestCmd = &cobra.Command{
 	PreRun:                actionPreRun,
 	Run: func(cmd *cobra.Command, args []string) {
 		a := append([]string{"/.singularity.d/actions/test"}, args[1:]...)
-		if err := launchContainer(cmd, args[0], a, ""); err != nil {
+		if err := launchContainer(cmd, args[0], a, "", -1); err != nil {
 			sylog.Fatalf("%s", err)
 		}
 	},
@@ -247,7 +261,7 @@ var TestCmd = &cobra.Command{
 	Example: docs.RunTestExample,
 }
 
-func launchContainer(cmd *cobra.Command, image string, args []string, instanceName string) error {
+func launchContainer(cmd *cobra.Command, image string, args []string, instanceName string, fd int) error {
 	ns := launch.Namespaces{
 		User: userNamespace,
 		UTS:  utsNamespace,
@@ -321,6 +335,11 @@ func launchContainer(cmd *cobra.Command, image string, args []string, instanceNa
 		launch.OptUseBuildConfig(useBuildConfig),
 		launch.OptTmpDir(tmpDir),
 		launch.OptUnderlay(underlay),
+		launch.OptMpiMode(mpiMode),
+	}
+
+	if fd != 0 {
+		opts = append(opts, launch.OptMpiFd(fd))
 	}
 
 	l, err := launch.NewLauncher(opts...)
@@ -329,4 +348,43 @@ func launchContainer(cmd *cobra.Command, image string, args []string, instanceNa
 	}
 
 	return l.Exec(cmd.Context(), image, args, instanceName)
+}
+
+func mpiLaunch(cmd *cobra.Command, args []string, exec bool) error {
+	ppid := os.Getppid()
+	procDir := fmt.Sprintf("/proc/%d", ppid)
+	instanceName := fmt.Sprintf("%s_%d", mpiInstancePrefix, ppid)
+	image := args[0]
+
+	// try locking the ppid proc folder
+	fd, accquired, err := lock.TryExclusive(procDir)
+	if err != nil {
+		return err
+	}
+
+	var a []string
+	if exec {
+		a = append([]string{"/.singularity.d/actions/exec"}, args[1:]...)
+	} else {
+		a = append([]string{"/.singularity.d/actions/run"}, args[1:]...)
+	}
+	sylog.Debugf("Mpi mode is enabled, fd: %d, ppid: %d, lock accquired: %v, err: %v", fd, ppid, accquired, err)
+	if accquired {
+		// first process
+		if err := launchContainer(cmd, image, a, instanceName, fd); err != nil {
+			return err
+		}
+	} else {
+		// other process, this will block the process
+		fd, err := lock.Exclusive(procDir)
+		if err != nil {
+			return err
+		} else if err = lock.Release(fd); err != nil {
+			return err
+		}
+		if err := launchContainer(cmd, fmt.Sprintf("instance://%s", instanceName), a, "", -1); err != nil {
+			return err
+		}
+	}
+	return nil
 }

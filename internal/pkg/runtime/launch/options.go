@@ -151,6 +151,8 @@ type launchOptions struct {
 	UseBuildConfig    bool
 	TmpDir            string
 	Underlay          bool // whether prefer underlay over overlay
+	MpiMode           bool // whether running in mpi mode
+	MpiFd             int  // fd opened in mpi mode
 }
 
 type Launcher struct {
@@ -563,6 +565,22 @@ func OptTmpDir(a string) Option {
 func OptUnderlay(b bool) Option {
 	return func(lo *launchOptions) error {
 		lo.Underlay = b
+		return nil
+	}
+}
+
+// OptMpirun
+func OptMpiMode(b bool) Option {
+	return func(lo *launchOptions) error {
+		lo.MpiMode = b
+		return nil
+	}
+}
+
+// OptMpiFd
+func OptMpiFd(fd int) Option {
+	return func(lo *launchOptions) error {
+		lo.MpiFd = fd
 		return nil
 	}
 }

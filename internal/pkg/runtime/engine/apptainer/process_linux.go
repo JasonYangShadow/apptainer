@@ -45,6 +45,7 @@ import (
 	apptainercallback "github.com/apptainer/apptainer/pkg/plugin/callback/runtime/engine/apptainer"
 	apptainerConfig "github.com/apptainer/apptainer/pkg/runtime/engine/apptainer/config"
 	"github.com/apptainer/apptainer/pkg/sylog"
+	"github.com/apptainer/apptainer/pkg/util/fs/lock"
 	"github.com/apptainer/apptainer/pkg/util/rlimit"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"golang.org/x/sys/unix"
@@ -63,6 +64,14 @@ const defaultShell = "/bin/sh"
 //
 //nolint:maintidx
 func (e *EngineOperations) StartProcess(masterConnFd int) error {
+	// Close mpi open fd if exists
+	defer func() {
+		// close the opened fd inside container, preventing leak
+		if fd := e.EngineConfig.GetMpiFd(); fd != -1 && e.EngineConfig.GetMpiMode() {
+			sylog.Debugf("Close mpi fd lock, fd: %d", fd)
+			_ = unix.Close(fd)
+		}
+	}()
 	// Manage all signals.
 	// Queue them until they're ready to be handled below.
 	// Use a channel size of two here, since we may receive SIGURG, which is
@@ -347,6 +356,14 @@ func (e *EngineOperations) PostStartProcess(ctx context.Context, pid int) error 
 	}
 
 	if e.EngineConfig.GetInstance() {
+		defer func() {
+			// release the open fd for mpi mode, this is for the first process
+			if fd := e.EngineConfig.GetMpiFd(); fd != -1 && e.EngineConfig.GetMpiMode() {
+				sylog.Debugf("Release mpi fd lock, fd: %d", fd)
+				_ = lock.Release(fd)
+			}
+		}()
+
 		os.Setenv("APPTAINER_CONFIGDIR", e.EngineConfig.GetConfigDir())
 
 		name := e.CommonConfig.ContainerID
@@ -359,6 +376,9 @@ func (e *EngineOperations) PostStartProcess(ctx context.Context, pid int) error 
 		if err != nil {
 			return err
 		}
+
+		// add MpiMode flag
+		file.MpiMode = e.EngineConfig.GetMpiMode()
 
 		pw, err := user.CurrentOriginal()
 		if err != nil {
@@ -437,6 +457,7 @@ func (e *EngineOperations) PostStartProcess(ctx context.Context, pid int) error 
 
 		return err
 	}
+
 	return nil
 }
 

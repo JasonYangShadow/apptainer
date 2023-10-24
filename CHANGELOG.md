@@ -42,6 +42,8 @@ For older changes see the [archived Singularity change log](https://github.com/a
 
 - The `remote status` command will now print the username, realname, and email
   of the logged-in user, if available.
+- Adding `--mpi` mode for `apptainer exec/run`, which enables to run multiple
+  apptainer instances in the same user namespace launched by mpirun.
 
 ### Developer / API
 

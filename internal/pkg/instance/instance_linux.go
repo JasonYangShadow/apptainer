@@ -55,6 +55,7 @@ type File struct {
 	LogErrPath string `json:"logErrPath"`
 	LogOutPath string `json:"logOutPath"`
 	Checkpoint string `json:"checkpoint"`
+	MpiMode    bool   `json:"mpiMode"`
 }
 
 // ProcName returns process name based on instance name
@@ -129,7 +130,7 @@ func Get(name string, subDir string) (*File, error) {
 	if err := CheckName(name); err != nil {
 		return nil, err
 	}
-	list, err := List("", name, subDir)
+	list, err := List("", name, subDir, true)
 	if err != nil {
 		return nil, err
 	}
@@ -160,7 +161,7 @@ func Add(name string, subDir string) (*File, error) {
 }
 
 // List returns instance files matching username and/or name pattern
-func List(username string, name string, subDir string) ([]*File, error) {
+func List(username string, name string, subDir string, all bool) ([]*File, error) {
 	list := make([]*File, 0)
 
 	path, err := getPath(username, subDir)
@@ -189,6 +190,10 @@ func List(username string, name string, subDir string) ([]*File, error) {
 		// delete ghost apptainer instance files
 		if subDir == AppSubDir && f.isExited() {
 			f.Delete()
+			continue
+		}
+		// by default skip mpi instance unless --all is set
+		if f.MpiMode && !all {
 			continue
 		}
 		list = append(list, f)

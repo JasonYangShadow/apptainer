@@ -89,6 +89,8 @@ var (
 	ignoreUserns      bool
 
 	underlay bool // whether using underlay instead of overlay
+
+	mpiMode bool // mode for launching container using mpirun or mpiexec
 )
 
 // --app
@@ -805,6 +807,17 @@ var actionUnderlayFlag = cmdline.Flag{
 	Hidden:       false,
 }
 
+// --mpirun
+var actionMpiModeFlag = cmdline.Flag{
+	ID:           "mpiModeFlag",
+	Value:        &mpiMode,
+	DefaultValue: false,
+	Name:         "mpi",
+	Usage:        "mode for launching container using mpirun or mpiexec",
+	EnvKeys:      []string{"MPIMODE"},
+	Hidden:       false,
+}
+
 func init() {
 	addCmdInit(func(cmdManager *cmdline.CommandManager) {
 		cmdManager.RegisterCmd(ExecCmd)
@@ -896,5 +909,9 @@ func init() {
 		cmdManager.RegisterFlagForCmd(&actionIgnoreFakerootCommand, actionsInstanceCmd...)
 		cmdManager.RegisterFlagForCmd(&actionIgnoreUsernsFlag, actionsInstanceCmd...)
 		cmdManager.RegisterFlagForCmd(&actionUnderlayFlag, actionsInstanceCmd...)
+
+		// register mpirun flag to ExecCmd and RunCmd only
+		cmdManager.RegisterFlagForCmd(&actionMpiModeFlag, ExecCmd)
+		cmdManager.RegisterFlagForCmd(&actionMpiModeFlag, RunCmd)
 	})
 }

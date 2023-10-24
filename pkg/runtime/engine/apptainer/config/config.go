@@ -153,6 +153,8 @@ type JSONConfig struct {
 	Underlay              bool              `json:"underlay,omitempty"`
 	UserInfo              UserInfo          `json:"userInfo,omitempty"`
 	WritableOverlay       bool              `json:"writableOverlay,omitempty"`
+	MpiMode               bool              `json:"mpiMode,omitempty"`
+	MpiFd                 int               `json:"mpiFd,omitempty"`
 }
 
 // SetImage sets the container image path to be used by EngineConfig.JSON.
@@ -941,4 +943,24 @@ func (e *EngineConfig) SetWritableOverlay(writableOverlay bool) {
 // GetWritableOverlay gets the value of whether the overlay is writable or not
 func (e *EngineConfig) GetWritableOverlay() bool {
 	return e.JSON.WritableOverlay
+}
+
+// SetMpiMode sets whether container should run in mpi specific mode or not
+func (e *EngineConfig) SetMpiMode(mpiMode bool) {
+	e.JSON.MpiMode = mpiMode
+}
+
+// GetMpiMode gets the value of previous SetMpiMode
+func (e *EngineConfig) GetMpiMode() bool {
+	return e.JSON.MpiMode
+}
+
+// SetMpiFd sets the locked fd
+func (e *EngineConfig) SetMpiFd(fd int) {
+	e.JSON.MpiFd = fd
+}
+
+// GetMpiFd gets the locked fd
+func (e *EngineConfig) GetMpiFd() int {
+	return e.JSON.MpiFd
 }

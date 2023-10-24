@@ -18,6 +18,7 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/apptainer/apptainer/e2e/internal/e2e"
 	"github.com/apptainer/apptainer/e2e/internal/testhelper"
@@ -134,7 +135,7 @@ func (c *ctx) testCreateManyInstances(t *testing.T) {
 			e2e.ExpectExit(0),
 		)
 
-		c.expectInstance(t, instanceName, 1)
+		c.expectInstance(t, instanceName, 1, false)
 	}
 }
 
@@ -383,7 +384,7 @@ func (c *ctx) testInstanceWithConfigDir(t *testing.T) {
 		e2e.ExpectExit(0),
 	)
 
-	c.expectInstance(t, name, 1)
+	c.expectInstance(t, name, 1, false)
 	c.execInstance(t, name, "id")
 	c.stopInstance(t, name)
 
@@ -392,6 +393,31 @@ func (c *ctx) testInstanceWithConfigDir(t *testing.T) {
 			t.Fatalf("failed %v", err)
 		}
 	})(t)
+}
+
+// Test mpi mode creating parallel instances but having only one instance
+func (c *ctx) testMpiMode(t *testing.T) {
+	e2e.EnsureImage(t, c.env)
+
+	c.profile = e2e.UserProfile
+	instancePrefix := "mpi_instance_*"
+	const n = 3
+	for i := 0; i < n; i++ {
+		go c.env.RunApptainer(
+			t,
+			e2e.WithProfile(c.profile),
+			e2e.WithCommand("exec"),
+			e2e.WithArgs("--mpi", c.env.ImagePath, "echo", "hi"),
+			e2e.WithEnv(c.withEnv),
+			e2e.SkipExit(),
+		)
+	}
+
+	// wait for the creation of instance file and echo
+	time.Sleep(500 * time.Millisecond)
+	c.expectInstance(t, instancePrefix, 1, true)
+	c.stopInstance(t, instancePrefix)
+	c.expectInstance(t, instancePrefix, 0, true)
 }
 
 // E2ETests is the main func to trigger the test suite
@@ -439,6 +465,10 @@ func E2ETests(env e2e.TestEnv) testhelper.Tests {
 					}
 				})
 			}
+
+			// run mpi mode using user profile only
+			c.profile = e2e.UserProfile
+			t.Run("MpiMode", c.testMpiMode)
 		},
 		"issue 5033": c.issue5033, // https://github.com/apptainer/singularity/issues/4836
 	}
