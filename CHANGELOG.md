@@ -49,6 +49,8 @@ For older changes see the [archived Singularity change log](https://github.com/a
   supplying the `--no-default` (or `-n`) flag to `remote add`.
 - Skip parsing build definition file template variables after comments
   beginning with a hash symbol.
+- Using the session directory instead of the global temp directory for gocryptfs
+  mount.
 
 ### New Features & Functionality
 

@@ -11,6 +11,7 @@ package apptainer
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"os"
@@ -44,6 +45,7 @@ import (
 	"github.com/apptainer/apptainer/pkg/util/fs/proc"
 	"github.com/apptainer/apptainer/pkg/util/namespaces"
 	"github.com/apptainer/apptainer/pkg/util/slice"
+	"github.com/google/uuid"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
@@ -2984,17 +2986,23 @@ func (c *container) getBindFlags(source string, defaultFlags uintptr) (uintptr, 
 
 func (c *container) gocryptfsMount(params *image.MountParams, system *mount.System, mfunc image.MountFunc) error {
 	// Prepare gocryptfs decryption info
-	tmpDir, err := os.MkdirTemp(os.TempDir(), "gocryptfs-")
+	gocryptfsDir := fmt.Sprintf("/gocryptfs-%s", base64.StdEncoding.EncodeToString([]byte(uuid.NewString())))
+	err := c.session.AddDir(gocryptfsDir)
+	if err != nil {
+		return err
+	}
+
+	tmpDir, err := c.session.GetPath(gocryptfsDir)
 	if err != nil {
 		return err
 	}
 	cipherDir := filepath.Join(tmpDir, "cipher")
-	err = os.Mkdir(cipherDir, 0o700)
+	err = os.MkdirAll(cipherDir, 0o700)
 	if err != nil {
 		return err
 	}
 	plainDir := filepath.Join(tmpDir, "plain")
-	err = os.Mkdir(plainDir, 0o700)
+	err = os.MkdirAll(plainDir, 0o700)
 	if err != nil {
 		return err
 	}
