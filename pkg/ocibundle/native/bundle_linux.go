@@ -12,16 +12,16 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/apptainer/apptainer/internal/pkg/build/oci"
+	"github.com/apptainer/apptainer/internal/pkg/cache"
+	"github.com/apptainer/apptainer/pkg/ocibundle"
+	"github.com/apptainer/apptainer/pkg/ocibundle/tools"
+	"github.com/apptainer/apptainer/pkg/sylog"
 	"github.com/containers/image/v5/transports"
 	"github.com/containers/image/v5/types"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/sylabs/singularity/internal/pkg/build/oci"
-	"github.com/sylabs/singularity/internal/pkg/cache"
-	"github.com/sylabs/singularity/internal/pkg/runtime/engine/config/oci/generate"
-	"github.com/sylabs/singularity/pkg/ocibundle"
-	"github.com/sylabs/singularity/pkg/ocibundle/tools"
-	"github.com/sylabs/singularity/pkg/sylog"
+	"github.com/opencontainers/umoci/oci/config/generate"
 )
 
 // Bundle is a native OCI bundle, created from imageRef.
