@@ -2232,6 +2232,64 @@ func (c imgBuildTests) testGocryptfsSIFBuild(t *testing.T) {
 	}
 }
 
+// Verify time discrepancy between host and container. This issue occurs when container's /etc/localtime is symlink and its
+// value is different from host's /etc/localtime value.
+// Current solution is: when building the image, will unlink the /etc/localtime inside rootfs if /etc/localtime is symlink
+func (c imgBuildTests) issue1868(t *testing.T) {
+	tmpdir, cleanup := c.tempDir(t, "patch-localtime-test")
+	t.Cleanup(func() {
+		if !t.Failed() {
+			cleanup()
+		}
+	})
+
+	definition := `Bootstrap: docker
+From: centos:7
+
+%%post
+ln -s /usr/share/zoneinfo/Asia/Tokyo /etc/localtime
+`
+
+	defFile := e2e.RawDefFile(t, tmpdir, strings.NewReader(definition))
+	imagePath := filepath.Join(tmpdir, "image-centos-7-broken")
+
+	// build issue image, simulating the issue case
+	c.env.RunApptainer(
+		t,
+		e2e.WithProfile(e2e.RootProfile),
+		e2e.WithCommand("build"),
+		e2e.WithArgs("-F", imagePath, defFile),
+		e2e.PostRun(func(t *testing.T) {
+			os.Remove(defFile)
+		}),
+		e2e.ExpectExit(0),
+	)
+
+	// this image will print wrong value `1577880000`, correct value should be `1577847600`
+	c.env.RunApptainer(
+		t,
+		e2e.WithProfile(e2e.UserProfile),
+		e2e.WithCommand("exec"),
+		e2e.WithEnv([]string{"TZ=Asia/Tokyo"}),
+		e2e.WithArgs(imagePath, "sh", "-c", `date --date "2020-01-01T12:00:00" +%s`),
+		e2e.ExpectExit(0,
+			e2e.ExpectOutput(e2e.ExactMatch, "1577880000"),
+		),
+	)
+
+	// correct one
+	c.env.RunApptainer(
+		t,
+		e2e.WithProfile(e2e.UserProfile),
+		e2e.WithCommand("exec"),
+		e2e.WithEnv([]string{"TZ=Asia/Tokyo"}),
+		e2e.WithArgs("--disable-cache", "docker://centos:7", "sh", "-c", `date --date "2020-01-01T12:00:00" +%s`),
+		e2e.ExpectExit(0,
+			e2e.ExpectOutput(e2e.ExactMatch, "1577847600"),
+		),
+	)
+}
+
 // E2ETests is the main func to trigger the test suite
 func E2ETests(env e2e.TestEnv) testhelper.Tests {
 	c := imgBuildTests{
@@ -2273,5 +2331,6 @@ func E2ETests(env e2e.TestEnv) testhelper.Tests {
 		"build sif image using gocryptfs":        c.testGocryptfsSIFBuild,                // https://github.com/apptainer/apptainer/issues/484
 		"definition build with template support": c.buildDefinitionWithBuildArgs,         // builds from definition with build args (build arg file) support
 		"issue 1812":                             c.issue1812,                            // https://github.com/sylabs/singularity/issues/1812
+		"issue 1868":                             c.issue1868,                            // https://github.com/apptainer/apptainer/issues/1868
 	}
 }

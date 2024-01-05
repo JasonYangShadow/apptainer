@@ -131,3 +131,26 @@ func currentEnvNoApptainer(permitted []string) []string {
 
 	return envs
 }
+
+func patchLocaltime(b *types.Bundle) {
+	const (
+		localtime = "/etc/localtime"
+	)
+	conFile := filepath.Join(b.RootfsPath, localtime)
+
+	// could not read container's /etc/localtime file, skip
+	if err := unix.Access(conFile, unix.R_OK); err != nil {
+		return
+	}
+
+	if st, err := os.Lstat(conFile); err == nil {
+		// container's /etc/localtime is a symlink file
+		if st.Mode()&os.ModeSymlink > 0 {
+			// unlink it
+			sylog.Verbosef("%s inside container is symlink, will unlink it", conFile)
+			if err := unix.Unlink(conFile); err != nil {
+				sylog.Warningf("while unlinking %s: %s", conFile, err)
+			}
+		}
+	}
+}

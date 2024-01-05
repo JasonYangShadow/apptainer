@@ -99,6 +99,7 @@ For older changes see the [archived Singularity change log](https://github.com/a
   via dependency update of mvdan.cc/sh.
 - Fix regression introduced in v1.2.0 that led to an empty user's shell field
   in the `/etc/passwd` file.
+- Fix image build issue causing time discrepancy between host and container.
 
 ### Release change
 

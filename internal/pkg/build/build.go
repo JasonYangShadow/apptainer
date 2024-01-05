@@ -425,6 +425,9 @@ func (b *Build) Full(ctx context.Context) error {
 			defer os.Remove(sessionHosts)
 		}
 
+		// patch /etc/localtime if this file inside container is a symlink
+		patchLocaltime(stage.b)
+
 		if stage.b.Recipe.BuildData.Post.Script != "" {
 			if err := stage.runPostScript(sessionResolv, sessionHosts); err != nil {
 				return fmt.Errorf("while running engine: %v", err)
