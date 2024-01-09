@@ -2265,25 +2265,12 @@ ln -s /usr/share/zoneinfo/Asia/Tokyo /etc/localtime
 		e2e.ExpectExit(0),
 	)
 
-	// this image will print wrong value `1577880000`, correct value should be `1577847600`
 	c.env.RunApptainer(
 		t,
 		e2e.WithProfile(e2e.UserProfile),
 		e2e.WithCommand("exec"),
 		e2e.WithEnv([]string{"TZ=Asia/Tokyo"}),
 		e2e.WithArgs(imagePath, "sh", "-c", `date --date "2020-01-01T12:00:00" +%s`),
-		e2e.ExpectExit(0,
-			e2e.ExpectOutput(e2e.ExactMatch, "1577880000"),
-		),
-	)
-
-	// correct one
-	c.env.RunApptainer(
-		t,
-		e2e.WithProfile(e2e.UserProfile),
-		e2e.WithCommand("exec"),
-		e2e.WithEnv([]string{"TZ=Asia/Tokyo"}),
-		e2e.WithArgs("--disable-cache", "docker://centos:7", "sh", "-c", `date --date "2020-01-01T12:00:00" +%s`),
 		e2e.ExpectExit(0,
 			e2e.ExpectOutput(e2e.ExactMatch, "1577847600"),
 		),

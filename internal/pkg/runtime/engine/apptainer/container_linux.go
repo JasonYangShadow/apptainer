@@ -222,6 +222,10 @@ func create(ctx context.Context, engine *EngineOperations, rpcOps *client.RPC, p
 		return err
 	}
 
+	if err := system.RunBeforeTag(mount.BindsTag, c.patchLocaltime); err != nil {
+		return err
+	}
+
 	if err := c.addRootfsMount(system); err != nil {
 		return err
 	}
@@ -3071,6 +3075,35 @@ func (c *container) gocryptfsMount(params *image.MountParams, system *mount.Syst
 		return fmt.Errorf("could not locate the decrypted squashfs file, previous gocryptfs mount failed")
 	}
 	return c.mountImageDriver(params, system, mfunc)
+}
+
+func (c *container) patchLocaltime(system *mount.System) error {
+	const (
+		localtime = "/etc/localtime"
+	)
+
+	// first check whether container /etc/localtime is symlink
+	if fi, err := c.rpcOps.Lstat(filepath.Join(c.session.FinalPath(), localtime)); err == nil && fi.Mode()&os.ModeSymlink != 0 {
+		// then check whether host /etc/localtime is symlink and target exists inside container
+		if fi, err := os.Lstat(localtime); err == nil && fi.Mode()&os.ModeSymlink != 0 {
+			// get the link target of host /etc/localtime, it should be the format of '/etc/localtime -> ../usr/share/zoneinfo/UTC'
+			if p, err := os.Readlink(localtime); err == nil {
+				// check whether the link target exists inside container
+				containerTarget := p
+				// if the symlink target is not absolute path, needing to do a calculation
+				if !strings.HasPrefix(p, "/") {
+					containerTarget = filepath.Join(filepath.Dir(localtime), p)
+				}
+				if _, err := c.rpcOps.Stat(containerTarget); err == nil {
+					sylog.Verbosef("%s inside container is symlink, will patch it to: %s", localtime, p)
+					if err := c.session.AddSymlink(localtime, p); err != nil {
+						return fmt.Errorf("could not add symlink %s -> %s inside container, err: %v", localtime, p, err)
+					}
+				}
+			}
+		}
+	}
+	return nil
 }
 
 func (c *container) GetPwUID(uid uint32) (*user.User, error) {
