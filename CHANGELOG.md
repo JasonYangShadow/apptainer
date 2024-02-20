@@ -11,6 +11,8 @@ For older changes see the [archived Singularity change log](https://github.com/a
 
 Changes since v1.3.0-rc.2
 
+- Refactor the persistent overlay test cases.
+
 ## v1.3.0-rc.2 - \[2024-02-15\]
 
 Changes since v1.3.0-rc.1
