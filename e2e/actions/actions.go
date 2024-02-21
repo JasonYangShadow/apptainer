@@ -780,21 +780,18 @@ func (c actionTests) PersistentOverlay(t *testing.T) {
 		e2e.ExpectExit(0),
 	)
 
-	// create centos 7 img
-	centos7Image := filepath.Join(testdir, "centos7.sif")
-	c.env.RunApptainer(
-		t,
-		e2e.WithProfile(e2e.UserProfile),
-		e2e.WithCommand("build"),
-		e2e.WithArgs("--force", centos7Image, "docker://centos:7"),
-		e2e.ExpectExit(0),
-	)
+	// create overlay embeded img
+	embededSif := filepath.Join(testdir, "embedded.sif")
+	err = fs.CopyFile(c.env.ImagePath, embededSif, 0o700)
+	if err != nil {
+		t.Fatalf("Failed to copy file from %s to %s", c.env.ImagePath, embededSif)
+	}
 
 	c.env.RunApptainer(
 		t,
 		e2e.WithProfile(e2e.UserProfile),
 		e2e.WithCommand("overlay"),
-		e2e.WithArgs("create", centos7Image),
+		e2e.WithArgs("create", embededSif),
 		e2e.ExpectExit(0),
 	)
 
@@ -903,8 +900,8 @@ func (c actionTests) PersistentOverlay(t *testing.T) {
 			exit:     0,
 		},
 		{
-			name: "centos 7 Embedded overlay partition in SIF",
-			argv: []string{centos7Image, "ps"},
+			name: "Embedded overlay partition in SIF",
+			argv: []string{embededSif, "ps"},
 			exit: 0,
 		},
 	}
