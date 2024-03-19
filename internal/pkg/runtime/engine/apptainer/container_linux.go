@@ -1786,6 +1786,16 @@ func (c *container) addBindsMount(system *mount.System) error {
 			}
 		}
 		if !skipAllBinds && !slice.ContainsString(skipBinds, localtimePath) {
+			if c.engine.EngineConfig.GetSessionLayer() == apptainer.OverlayLayer {
+				content, err := os.ReadFile(localtimePath)
+				if err != nil {
+					return fmt.Errorf("while reading host %s, err: %s", localtimePath, err)
+				}
+				if err := c.session.AddFile(filepath.Join(c.session.Layer.Dir(), localtimePath), content); err != nil {
+					return err
+				}
+			}
+
 			if err := system.Points.AddBind(mount.BindsTag, localtimePath, localtimePath, flags, "skip-on-error"); err != nil {
 				return fmt.Errorf("unable to add %s to mount list: %s", localtimePath, err)
 			}
@@ -1817,6 +1827,17 @@ func (c *container) addBindsMount(system *mount.System) error {
 		bindOpt := ""
 		if src == localtimePath || src == hostsPath {
 			bindOpt = "skip-on-error"
+			if c.engine.EngineConfig.GetSessionLayer() == apptainer.OverlayLayer {
+				if src == localtimePath {
+					content, err := os.ReadFile(localtimePath)
+					if err != nil {
+						return fmt.Errorf("while reading host %s, err: %s", localtimePath, err)
+					}
+					if err := c.session.AddFile(filepath.Join(c.session.Layer.Dir(), localtimePath), content); err != nil {
+						return err
+					}
+				}
+			}
 		}
 
 		err := system.Points.AddBind(mount.BindsTag, src, dst, flags, bindOpt)

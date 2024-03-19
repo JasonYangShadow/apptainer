@@ -9,6 +9,9 @@ For older changes see the [archived Singularity change log](https://github.com/a
 
 ## Changes for v1.3.x
 
+- Fixed the time discrepancy issue between the host and container, which occurs
+  when host's timezone is different from container's.
+
 ## v1.3.0 - \[2024-03-12\]
 
 Changes since v1.2.5

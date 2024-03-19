@@ -788,3 +788,17 @@ func (c actionTests) issue1848(t *testing.T) {
 		),
 	)
 }
+
+// Verify whether the time discrepancy issue gets resolved
+// see: https://github.com/apptainer/apptainer/issues/1868
+func (c actionTests) issue1868(t *testing.T) {
+	c.env.RunApptainer(
+		t,
+		e2e.WithProfile(e2e.UserProfile),
+		e2e.WithCommand("exec"),
+		e2e.WithArgs("docker://centos:7", "bash", "-c", "TZ=UTC date --date 2020-01-01T12:00:00 +%s"),
+		e2e.ExpectExit(0,
+			e2e.ExpectOutput(e2e.ExactMatch, "1577880000"),
+		),
+	)
+}
