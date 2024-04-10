@@ -37,7 +37,7 @@ var ErrLoginAborted = errors.New("user aborted login")
 // RemoteLogin logs in remote by setting API token
 // If the supplied remote name is an empty string, it will attempt
 // to use the default remote.
-func RemoteLogin(usrConfigFile string, args *LoginArgs) (err error) {
+func RemoteLogin(usrConfigFile string, args *LoginArgs, reqAuthFile string) (err error) {
 	// opening config file
 	file, err := os.OpenFile(usrConfigFile, os.O_RDWR|os.O_CREATE, 0o600)
 	if err != nil {
@@ -77,7 +77,7 @@ func RemoteLogin(usrConfigFile string, args *LoginArgs) (err error) {
 			return fmt.Errorf("--tokenfile is only supported for login to a remote endpoint, not OCI (docker/oras) or keyservers")
 		}
 		sylog.Warningf("'remote login' is deprecated for registries or keyservers and will be removed in a future release; running 'registry login'")
-		return RegistryLogin(usrConfigFile, args)
+		return RegistryLogin(usrConfigFile, args, reqAuthFile)
 	}
 
 	// truncating file before writing new contents and syncing to commit file

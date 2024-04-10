@@ -19,7 +19,7 @@ import (
 )
 
 // RegistryLogout logs out from an OCI/Docker registry.
-func RegistryLogout(usrConfigFile, name string) (err error) {
+func RegistryLogout(usrConfigFile, name string, reqAuthFile string) (err error) {
 	// opening config file
 	file, err := os.OpenFile(usrConfigFile, os.O_RDWR|os.O_CREATE, 0o600)
 	if err != nil {
@@ -38,7 +38,7 @@ func RegistryLogout(usrConfigFile, name string) (err error) {
 	}
 
 	// services
-	if err := c.Logout(name); err != nil {
+	if err := c.Logout(name, reqAuthFile); err != nil {
 		return fmt.Errorf("while verifying token: %v", err)
 	}
 

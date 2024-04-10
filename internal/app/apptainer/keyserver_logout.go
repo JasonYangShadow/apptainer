@@ -38,7 +38,7 @@ func KeyserverLogout(usrConfigFile, name string) (err error) {
 	}
 
 	// services
-	if err := c.Logout(name); err != nil {
+	if err := c.Logout(name, ""); err != nil {
 		return fmt.Errorf("while verifying token: %v", err)
 	}
 
