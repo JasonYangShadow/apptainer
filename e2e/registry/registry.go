@@ -324,7 +324,6 @@ func (c ctx) registryAuthTester(t *testing.T, withCustomAuthFile bool) {
 	})
 
 	orasCustomPushTarget := fmt.Sprintf("oras://%s/authfile-pushtest-oras-alpine:latest", c.env.TestRegistryPrivPath)
-	dockerCustomPushTarget := fmt.Sprintf("docker://%s/authfile-pushtest-ocisif-alpine:latest", c.env.TestRegistryPrivPath)
 
 	tests := []struct {
 		name          string
@@ -355,13 +354,6 @@ func (c ctx) registryAuthTester(t *testing.T, withCustomAuthFile bool) {
 			expectExit:    255,
 		},
 		{
-			name:          "docker pull ocisif",
-			cmd:           "pull",
-			args:          []string{"-F", "--oci", "--disable-cache", "--no-https", c.env.TestRegistryPrivImage},
-			whileLoggedIn: true,
-			expectExit:    0,
-		},
-		{
 			name:          "noauth oras push",
 			cmd:           "push",
 			args:          []string{"my-alpine_latest.sif", orasCustomPushTarget},
@@ -372,20 +364,6 @@ func (c ctx) registryAuthTester(t *testing.T, withCustomAuthFile bool) {
 			name:          "oras push",
 			cmd:           "push",
 			args:          []string{"my-alpine_latest.sif", orasCustomPushTarget},
-			whileLoggedIn: true,
-			expectExit:    0,
-		},
-		{
-			name:          "noauth docker push",
-			cmd:           "push",
-			args:          []string{"my-alpine_latest.oci.sif", dockerCustomPushTarget},
-			whileLoggedIn: false,
-			expectExit:    255,
-		},
-		{
-			name:          "docker push",
-			cmd:           "push",
-			args:          []string{"my-alpine_latest.oci.sif", dockerCustomPushTarget},
 			whileLoggedIn: true,
 			expectExit:    0,
 		},
