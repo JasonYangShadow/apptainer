@@ -215,6 +215,9 @@ func init() {
 
 		cmdManager.RegisterFlagForCmd(&remoteKeyserverOrderFlag, RemoteAddKeyserverCmd)
 		cmdManager.RegisterFlagForCmd(&remoteKeyserverInsecureFlag, RemoteAddKeyserverCmd)
+
+		cmdManager.RegisterFlagForCmd(&commonAuthFileFlag, RemoteLoginCmd)
+		cmdManager.RegisterFlagForCmd(&commonAuthFileFlag, RemoteLogoutCmd)
 	})
 }
 
@@ -306,7 +309,7 @@ var RemoteAddCmd = &cobra.Command{
 				Name:      name,
 				Tokenfile: loginTokenFile,
 			}
-			if err := apptainer.RemoteLogin(remoteConfig, loginArgs); err != nil {
+			if err := apptainer.RemoteLogin(remoteConfig, loginArgs, reqAuthFile); err != nil {
 				sylog.Fatalf("%s", err)
 			}
 		}
@@ -402,7 +405,7 @@ var RemoteLoginCmd = &cobra.Command{
 			loginArgs.Password = strings.TrimSuffix(loginArgs.Password, "\r")
 		}
 
-		if err := apptainer.RemoteLogin(remoteConfig, loginArgs); err != nil {
+		if err := apptainer.RemoteLogin(remoteConfig, loginArgs, reqAuthFile); err != nil {
 			sylog.Fatalf("%s", err)
 		}
 	},
@@ -425,7 +428,7 @@ var RemoteLogoutCmd = &cobra.Command{
 			name = args[0]
 		}
 
-		if err := apptainer.RemoteLogout(remoteConfig, name); err != nil {
+		if err := apptainer.RemoteLogout(remoteConfig, name, reqAuthFile); err != nil {
 			sylog.Fatalf("%s", err)
 		}
 		sylog.Infof("Logout succeeded")
