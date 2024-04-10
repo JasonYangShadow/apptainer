@@ -20,21 +20,22 @@ import (
 	"github.com/apptainer/apptainer/internal/pkg/build"
 	"github.com/apptainer/apptainer/internal/pkg/build/oci"
 	"github.com/apptainer/apptainer/internal/pkg/cache"
+	"github.com/apptainer/apptainer/internal/pkg/remote/credential/ociauth"
 	"github.com/apptainer/apptainer/internal/pkg/util/fs"
 	buildtypes "github.com/apptainer/apptainer/pkg/build/types"
-	"github.com/apptainer/apptainer/pkg/syfs"
 	"github.com/apptainer/apptainer/pkg/sylog"
 	useragent "github.com/apptainer/apptainer/pkg/util/user-agent"
 	ocitypes "github.com/containers/image/v5/types"
 )
 
 type PullOptions struct {
-	TmpDir     string
-	OciAuth    *ocitypes.DockerAuthConfig
-	DockerHost string
-	NoHTTPS    bool
-	NoCleanUp  bool
-	Pullarch   string
+	TmpDir      string
+	OciAuth     *ocitypes.DockerAuthConfig
+	DockerHost  string
+	NoHTTPS     bool
+	NoCleanUp   bool
+	Pullarch    string
+	ReqAuthFile string
 }
 
 // pull will build a SIF image into the cache if directTo="", or a specific file if directTo is set.
@@ -47,9 +48,9 @@ func pull(ctx context.Context, imgCache *cache.Handle, directTo, pullFrom string
 	sysCtx := &ocitypes.SystemContext{
 		OCIInsecureSkipTLSVerify: opts.NoHTTPS,
 		DockerAuthConfig:         opts.OciAuth,
-		AuthFilePath:             syfs.SearchDockerConf(),
 		DockerRegistryUserAgent:  useragent.Value(),
 		BigFilesTemporaryDir:     opts.TmpDir,
+		AuthFilePath:             ociauth.ChooseAuthFile(opts.ReqAuthFile),
 	}
 	if opts.Pullarch != "" {
 		if arch, ok := oci.ArchMap[opts.Pullarch]; ok {
