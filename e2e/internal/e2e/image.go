@@ -13,6 +13,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -193,6 +194,29 @@ func EnsureORASImage(t *testing.T, env TestEnv) {
 	})
 }
 
+var orasPrivImageOnce sync.Once
+
+func EnsureORASPrivImage(t *testing.T, env TestEnv) {
+	EnsureImage(t, env)
+
+	ensureMutex.Lock()
+	defer ensureMutex.Unlock()
+
+	orasPrivImageOnce.Do(func() {
+		t.Logf("Pushing %s to %s", env.ImagePath, env.OrasTestPrivImage)
+		env.RunApptainer(
+			t,
+			WithProfile(UserProfile),
+			WithCommand("push"),
+			WithArgs(env.ImagePath, env.OrasTestPrivImage),
+			ExpectExit(0),
+		)
+		if t.Failed() {
+			t.Fatalf("failed to push ORAS image to local private registry")
+		}
+	})
+}
+
 // PullImage will pull a test image.
 func PullImage(t *testing.T, env TestEnv, imageURL string, arch string, path string) {
 	pullMutex.Lock()
@@ -246,10 +270,10 @@ func CopyImage(t *testing.T, source, dest string, insecureSource, insecureDest b
 	// We don't want to inadvertently send out credentials over http (!)
 	u := CurrentUser(t)
 	configPath := filepath.Join(u.Dir, ".apptainer", syfs.DockerConfFile)
-	if !insecureSource {
+	if !insecureSource || isLocalHost(source) {
 		srcCtx.AuthFilePath = configPath
 	}
-	if !insecureDest {
+	if !insecureDest || isLocalHost(dest) {
 		dstCtx.AuthFilePath = configPath
 	}
 
@@ -270,6 +294,23 @@ func CopyImage(t *testing.T, source, dest string, insecureSource, insecureDest b
 	if err != nil {
 		t.Fatalf("failed to copy %s to %s: %s", source, dest, err)
 	}
+}
+
+// isLocalHost checks if the host component of a given URI points to the
+// localhost. Note that this function returns a boolean: a malformed URI is
+// considered a URI whose host does not point to localhost.
+func isLocalHost(uri string) bool {
+	u, err := url.Parse(uri)
+	if err != nil {
+		return false
+	}
+
+	switch u.Hostname() {
+	case "localhost", "127.0.0.1":
+		return true
+	}
+
+	return false
 }
 
 // BusyboxImage will provide the path to a local busybox SIF image for the current architecture
