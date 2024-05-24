@@ -99,7 +99,7 @@ func (l *Launcher) Exec(ctx context.Context, image string, args []string, instan
 	var err error
 
 	var fakerootPath string
-	if userNs, _ := namespaces.IsInsideUserNamespace(os.Getpid()); userNs && os.Getuid() == 0 {
+	if l.cfg.Fakeroot {
 		if (l.uid == 0) && namespaces.IsUnprivileged() {
 			// Already running root-mapped unprivileged
 			l.cfg.Fakeroot = false
