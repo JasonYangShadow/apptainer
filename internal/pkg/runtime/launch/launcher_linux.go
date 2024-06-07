@@ -1073,7 +1073,7 @@ func (l *Launcher) setCgroups(instanceName string) error {
 	hidePid := hidepidProc()
 	// If we are an instance, always use a cgroup if possible, to enable stats.
 	// root can always create a cgroup.
-	useCG := l.uid == 0
+	useCG := l.uid == 0 && !l.cfg.Namespaces.User
 	// non-root needs cgroups v2 unified mode + systemd as cgroups manager.
 	if !useCG && lccgroups.IsCgroup2UnifiedMode() && l.engineConfig.File.SystemdCgroups && !l.cfg.Fakeroot && !hidePid {
 		if os.Getenv("XDG_RUNTIME_DIR") == "" || os.Getenv("DBUS_SESSION_BUS_ADDRESS") == "" {
