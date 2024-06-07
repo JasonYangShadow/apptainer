@@ -198,6 +198,44 @@ Then to compile and install do this:
 sudo ./scripts/install-dependencies
 ```
 
+## Apparmor Profile (Ubuntu 24.04+)
+
+Beginning with the 24.04 LTS release, Ubuntu does not permit applications to
+create unprivileged user namespaces by default.
+
+If you install Apptainer from a GitHub release `.deb` package then an
+apparmor profile will be installed that permits Apptainer to create
+unprivileged user namespaces.
+
+If you install Apptainer from source you must configure apparmor.
+Create an apparmor profile file at `/etc/apparmor.d/apptainer`:
+
+```sh
+sudo tee /etc/apparmor.d/apptainer << 'EOF'
+# Permit unprivileged user namespace creation for apptainer starter
+abi <abi/4.0>,
+include <tunables/global>
+profile apptainer /usr/local/libexec/apptainer/bin/starter{,-suid} 
+flags=(unconfined) {
+  userns,
+  # Site-specific additions and overrides. See local/README for details.
+  include if exists <local/apptainer>
+}
+EOF
+```
+
+Modify the path beginning `/usr/local` if you specified a non-default `--prefix`
+when configuring and installing Apptainer.
+
+Reload the system apparmor profiles after you have created the file:
+
+```sh
+sudo systemctl reload apparmor
+```
+
+Apptainer will now be able to create unprivileged user namespaces on your
+system.
+
 ## Building & Installing from RPM
 
 On a RHEL / CentOS / Fedora machine you can build an Apptainer into rpm
