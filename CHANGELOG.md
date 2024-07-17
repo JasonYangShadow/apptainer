@@ -14,6 +14,7 @@ For older changes see the [archived Singularity change log](https://github.com/a
 
 - Fix sif-embedded overlay partitions for containers that are larger
   than 2 gigabytes.
+- Fix the broken apparmor profile and add ci tests.
 
 ## v1.3.3 - \[2024-07-03\]
 
