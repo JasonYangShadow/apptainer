@@ -36,7 +36,7 @@ import (
 // DownloadImage downloads a SIF image specified by an oci reference to a file using the included credentials
 func DownloadImage(ctx context.Context, path, ref string, ociAuth *ocitypes.DockerAuthConfig, noHTTPS bool, reqAuthFile string) error {
 	rt := client.NewRoundTripper(ctx, nil)
-	im, err := remoteImage(ref, ociAuth, noHTTPS, rt)
+	im, err := remoteImage(ref, ociAuth, noHTTPS, rt, reqAuthFile)
 	if err != nil {
 		rt.ProgressShutdown()
 		return err
