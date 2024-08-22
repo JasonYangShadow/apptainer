@@ -45,7 +45,8 @@ import (
 )
 
 type apptainerKeychain struct {
-	mu sync.Mutex
+	mu          sync.Mutex
+	reqAuthFile string
 }
 
 // Resolve implements Keychain.
@@ -115,9 +116,9 @@ func (sk *apptainerKeychain) Resolve(target authn.Resource) (authn.Authenticator
 	}), nil
 }
 
-func AuthOptn(ociAuth *ocitypes.DockerAuthConfig) remote.Option {
+func AuthOptn(ociAuth *ocitypes.DockerAuthConfig, reqAuthFile string) remote.Option {
 	// By default we use auth from ~/.apptainer/docker-config.json
-	authOptn := remote.WithAuthFromKeychain(&apptainerKeychain{})
+	authOptn := remote.WithAuthFromKeychain(&apptainerKeychain{reqAuthFile: reqAuthFile})
 
 	// If explicit credentials in ociAuth were passed in, use those instead.
 	if ociAuth != nil {
