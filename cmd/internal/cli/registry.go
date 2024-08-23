@@ -72,6 +72,9 @@ func init() {
 		cmdManager.RegisterFlagForCmd(&registryLoginUsernameFlag, RegistryLoginCmd)
 		cmdManager.RegisterFlagForCmd(&registryLoginPasswordFlag, RegistryLoginCmd)
 		cmdManager.RegisterFlagForCmd(&registryLoginPasswordStdinFlag, RegistryLoginCmd)
+
+		cmdManager.RegisterFlagForCmd(&commonAuthFileFlag, RegistryLoginCmd)
+		cmdManager.RegisterFlagForCmd(&commonAuthFileFlag, RegistryLogoutCmd)
 	})
 }
 

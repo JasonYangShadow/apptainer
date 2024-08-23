@@ -938,6 +938,7 @@ func init() {
 		cmdManager.RegisterFlagForCmd(&actionIgnoreFakerootCommand, actionsInstanceCmd...)
 		cmdManager.RegisterFlagForCmd(&actionIgnoreUsernsFlag, actionsInstanceCmd...)
 		cmdManager.RegisterFlagForCmd(&actionUnderlayFlag, actionsInstanceCmd...)
+		cmdManager.RegisterFlagForCmd(&commonAuthFileFlag, actionsInstanceCmd...)
 		cmdManager.RegisterFlagForCmd(&actionShareNSFlag, actionsCmd...)
 		cmdManager.RegisterFlagForCmd(&actionRunscriptTimeoutFlag, actionsRunscriptCmd...)
 	})
