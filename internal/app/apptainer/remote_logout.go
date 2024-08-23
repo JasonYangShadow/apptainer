@@ -21,7 +21,7 @@ import (
 )
 
 // RemoteLogout logs out from an endpoint.
-func RemoteLogout(usrConfigFile, name string) (err error) {
+func RemoteLogout(usrConfigFile, name string, reqAuthFile string) (err error) {
 	// opening config file
 	file, err := os.OpenFile(usrConfigFile, os.O_RDWR|os.O_CREATE, 0o600)
 	if err != nil {
@@ -52,7 +52,7 @@ func RemoteLogout(usrConfigFile, name string) (err error) {
 	} else {
 		// services
 		sylog.Warningf("'remote logout' is deprecated for registries or keyservers and will be removed in a future release; running 'registry logout'")
-		return RegistryLogout(usrConfigFile, name)
+		return RegistryLogout(usrConfigFile, name, reqAuthFile)
 	}
 
 	// truncating file before writing new contents and syncing to commit file

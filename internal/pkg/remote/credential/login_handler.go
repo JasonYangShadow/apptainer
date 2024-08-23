@@ -11,21 +11,16 @@ package credential
 
 import (
 	"crypto/tls"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
 	"time"
 
 	"github.com/apptainer/apptainer/internal/pkg/remote/credential/ociauth"
-	"github.com/apptainer/apptainer/internal/pkg/util/fs"
 	"github.com/apptainer/apptainer/internal/pkg/util/interactive"
-	"github.com/apptainer/apptainer/pkg/syfs"
 
+	"github.com/apptainer/apptainer/pkg/sylog"
 	useragent "github.com/apptainer/apptainer/pkg/util/user-agent"
-	"github.com/docker/cli/cli/config"
-	"github.com/docker/cli/cli/config/configfile"
 )
 
 // loginHandlers contains the registered handlers by scheme.
@@ -93,44 +88,42 @@ func (h *ociHandler) login(u *url.URL, username, password string, insecure bool,
 	}, nil
 }
 
-func (h *ociHandler) logout(u *url.URL) error {
-	ociConfig := syfs.DockerConf()
-	ociConfigNew := syfs.DockerConf() + ".new"
-	cf := configfile.New(syfs.DockerConf())
-	if fs.IsFile(ociConfig) {
-		f, err := os.Open(ociConfig)
-		if err != nil {
-			return err
-		}
-		defer f.Close()
-		cf, err = config.LoadFromReader(f)
-		if err != nil {
-			return err
-		}
+func (h *ociHandler) logout(u *url.URL, reqAuthFile string) error {
+	if u == nil {
+		return fmt.Errorf("URL not provided for logout.")
 	}
 
 	registry := u.Host + u.Path
-	if _, ok := cf.AuthConfigs[registry]; !ok {
-		return fmt.Errorf("%q is not logged in", registry)
-	}
-
-	delete(cf.AuthConfigs, registry)
-
-	configData, err := json.Marshal(cf)
+	cf, err := ociauth.ConfigFileFromPath(ociauth.ChooseAuthFile(reqAuthFile))
 	if err != nil {
-		return err
+		return fmt.Errorf("while loading existing OCI registry credentials from %q: %w", ociauth.ChooseAuthFile(reqAuthFile), err)
 	}
-	if err := os.WriteFile(ociConfigNew, configData, 0o600); err != nil {
-		return err
+
+	if _, ok := cf.GetAuthConfigs()[registry]; !ok {
+		sylog.Warningf("There is no existing login to registry %q.", registry)
+		return nil
 	}
-	return os.Rename(ociConfigNew, ociConfig)
+
+	creds := cf.GetCredentialsStore(registry)
+	if _, err := creds.Get(registry); err != nil {
+		sylog.Warningf("There is no existing login to registry %q.", registry)
+		return nil
+	}
+
+	if err := creds.Erase(registry); err != nil {
+		return fmt.Errorf("while deleting OCI credentials for registry %q: %w", registry, err)
+	}
+
+	sylog.Infof("Token removed from %s", cf.Filename)
+
+	return nil
 }
 
 // keyserverHandler handle login/logout for keyserver service.
 type keyserverHandler struct{}
 
 //nolint:revive
-func (h *keyserverHandler) login(u *url.URL, username, password string, insecure bool) (*Config, error) {
+func (h *keyserverHandler) login(u *url.URL, username, password string, insecure bool, reqAuthFile string) (*Config, error) {
 	pass, err := ensurePassword(password)
 	if err != nil {
 		return nil, err
@@ -180,6 +173,6 @@ func (h *keyserverHandler) login(u *url.URL, username, password string, insecure
 }
 
 //nolint:revive
-func (h *keyserverHandler) logout(u *url.URL) error {
+func (h *keyserverHandler) logout(u *url.URL, reqAuthFile string) error {
 	return nil
 }

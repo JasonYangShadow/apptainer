@@ -11,23 +11,14 @@
 package registry
 
 import (
-	"context"
-	"errors"
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/apptainer/apptainer/e2e/internal/e2e"
 	"github.com/apptainer/apptainer/e2e/internal/testhelper"
-	"github.com/apptainer/apptainer/pkg/syfs"
-	useragent "github.com/apptainer/apptainer/pkg/util/user-agent"
-	"github.com/containers/image/v5/copy"
-	"github.com/containers/image/v5/docker"
-	"github.com/containers/image/v5/signature"
-	"github.com/containers/image/v5/types"
 )
 
 type ctx struct {
@@ -157,10 +148,12 @@ func (c ctx) registryLogin(t *testing.T) {
 			expectExit: 0,
 		},
 		{
-			name:       "logout KO",
+			// We've defined asking for logout when the user is already logged
+			// out as a NOOP - so this should succeed.
+			name:       "already logged-out",
 			command:    "registry logout",
 			args:       []string{badRegistry},
-			expectExit: 255,
+			expectExit: 0,
 		},
 		{
 			name:       "logout OK",
@@ -288,16 +281,19 @@ func (c ctx) registryLoginRepeated(t *testing.T) {
 	}
 }
 
-// JSON files created by our `remote login` flow should be usable in execution
-// flows that use containers/image APIs.
-// See https://github.com/sylabs/singularity/issues/2226
-func (c ctx) registryIssue2226(t *testing.T) {
-	testRegistry := c.env.TestRegistry
-	testRegistryURI := fmt.Sprintf("docker://%s", testRegistry)
-	privRepo := fmt.Sprintf("%s/private/e2eprivrepo", testRegistry)
-	privRepoURI := fmt.Sprintf("docker://%s", privRepo)
+// Tests authentication with registries, incl.
+// https://github.com/sylabs/singularity/issues/2226, among many other flows.
+func (c ctx) registryAuth(t *testing.T) {
+	t.Run("default", func(t *testing.T) {
+		c.registryAuthTester(t, false)
+	})
+	t.Run("custom", func(t *testing.T) {
+		c.registryAuthTester(t, true)
+	})
+}
 
-	tmpdir, tmpdirCleanup := e2e.MakeTempDir(t, "", "issue2226", "")
+func (c ctx) registryAuthTester(t *testing.T, withCustomAuthFile bool) {
+	tmpdir, tmpdirCleanup := e2e.MakeTempDir(t, c.env.TestDir, "registry-auth", "")
 	t.Cleanup(func() {
 		if !t.Failed() {
 			tmpdirCleanup(t)
@@ -313,103 +309,122 @@ func (c ctx) registryIssue2226(t *testing.T) {
 		t.Fatalf("could not change cwd to %q: %s", tmpdir, err)
 	}
 
-	areWeLoggedIn := false
-
-	privRepoLogin := func() {
-		c.env.RunApptainer(
-			t,
-			e2e.WithProfile(e2e.UserProfile),
-			e2e.WithCommand("registry login"),
-			e2e.WithArgs("-u", e2e.DefaultUsername, "-p", e2e.DefaultPassword, testRegistryURI),
-			e2e.ExpectExit(0),
-		)
-		areWeLoggedIn = true
-	}
-	privRepoLogout := func() {
-		c.env.RunApptainer(
-			t,
-			e2e.WithProfile(e2e.UserProfile),
-			e2e.WithCommand("registry logout"),
-			e2e.WithArgs(testRegistryURI),
-			e2e.ExpectExit(0),
-		)
-		areWeLoggedIn = false
+	localAuthFileName := ""
+	if withCustomAuthFile {
+		localAuthFileName = "./my_local_authfile"
 	}
 
-	privRepoLogin()
+	authFileArgs := []string{}
+	if withCustomAuthFile {
+		authFileArgs = []string{"--authfile", localAuthFileName}
+	}
+
 	t.Cleanup(func() {
-		if areWeLoggedIn {
-			privRepoLogout()
-		}
+		e2e.PrivateRepoLogout(t, c.env, e2e.UserProfile, localAuthFileName)
 	})
 
-	policy := &signature.Policy{Default: []signature.PolicyRequirement{signature.NewPRInsecureAcceptAnything()}}
-	policyCtx, err := signature.NewPolicyContext(policy)
-	if err != nil {
-		t.Fatalf("failed to create new policy context: %v", err)
+	orasCustomPushTarget := fmt.Sprintf("oras://%s/authfile-pushtest-oras-alpine:3.18", c.env.TestRegistryPrivPath)
+	dockerCustomPushTarget := fmt.Sprintf("docker://%s/authfile-pushtest-ocisif-alpine:3.18", c.env.TestRegistryPrivPath)
+
+	tests := []struct {
+		name          string
+		cmd           string
+		args          []string
+		oci           bool
+		whileLoggedIn bool
+		expectExit    int
+	}{
+		{
+			name:          "docker pull before auth",
+			cmd:           "pull",
+			args:          []string{"-F", "--disable-cache", "--no-https", c.env.TestRegistryPrivImage},
+			whileLoggedIn: false,
+			expectExit:    255,
+		},
+		{
+			name:          "docker pull",
+			cmd:           "pull",
+			args:          []string{"-F", "--disable-cache", "--no-https", c.env.TestRegistryPrivImage},
+			whileLoggedIn: true,
+			expectExit:    0,
+		},
+		{
+			name:          "noauth docker pull",
+			cmd:           "pull",
+			args:          []string{"-F", "--disable-cache", "--no-https", c.env.TestRegistryPrivImage},
+			whileLoggedIn: false,
+			expectExit:    255,
+		},
+		{
+			name:          "docker pull ocisif",
+			cmd:           "pull",
+			args:          []string{"-F", "--disable-cache", "--no-https", c.env.TestRegistryPrivImage},
+			oci:           true,
+			whileLoggedIn: true,
+			expectExit:    0,
+		},
+		{
+			name:          "noauth oras push",
+			cmd:           "push",
+			args:          []string{"my-alpine_3.18.sif", orasCustomPushTarget},
+			whileLoggedIn: false,
+			expectExit:    255,
+		},
+		{
+			name:          "oras push",
+			cmd:           "push",
+			args:          []string{"my-alpine_3.18.sif", orasCustomPushTarget},
+			whileLoggedIn: true,
+			expectExit:    0,
+		},
+		{
+			name:          "noauth docker push",
+			cmd:           "push",
+			args:          []string{"my-alpine_3.18.oci.sif", dockerCustomPushTarget},
+			whileLoggedIn: false,
+			expectExit:    255,
+		},
+		{
+			name:          "docker push",
+			cmd:           "push",
+			args:          []string{"my-alpine_3.18.oci.sif", dockerCustomPushTarget},
+			whileLoggedIn: true,
+			expectExit:    0,
+		},
+		{
+			name:          "noauth oras pull",
+			cmd:           "pull",
+			args:          []string{"-F", "--disable-cache", "--no-https", orasCustomPushTarget},
+			whileLoggedIn: false,
+			expectExit:    255,
+		},
+		{
+			name:          "oras pull",
+			cmd:           "pull",
+			args:          []string{"-F", "--disable-cache", "--no-https", orasCustomPushTarget},
+			whileLoggedIn: true,
+			expectExit:    0,
+		},
 	}
 
-	sourceCtx := &types.SystemContext{
-		OCIInsecureSkipTLSVerify:    false,
-		DockerInsecureSkipTLSVerify: types.NewOptionalBool(false),
-		DockerRegistryUserAgent:     useragent.Value(),
-	}
-	destCtx := &types.SystemContext{
-		OCIInsecureSkipTLSVerify:    true,
-		DockerInsecureSkipTLSVerify: types.NewOptionalBool(true),
-		DockerRegistryUserAgent:     useragent.Value(),
-	}
-
-	u := e2e.CurrentUser(t)
-	configPath := filepath.Join(u.Dir, ".apptainer", syfs.DockerConfFile)
-	sourceCtx.AuthFilePath = configPath
-	destCtx.AuthFilePath = configPath
-
-	source := "docker://alpine:latest"
-	dest := fmt.Sprintf("%s/my-alpine:latest", privRepoURI)
-	sourceRef, err := docker.ParseReference(strings.TrimPrefix(source, "docker:"))
-	if err != nil {
-		t.Fatalf("failed to parse %s reference: %s", source, err)
-	}
-	destRef, err := docker.ParseReference(strings.TrimPrefix(dest, "docker:"))
-	if err != nil {
-		t.Fatalf("failed to parse %s reference: %s", dest, err)
-	}
-
-	_, err = copy.Image(context.Background(), policyCtx, destRef, sourceRef, &copy.Options{
-		ReportWriter:   io.Discard,
-		SourceCtx:      sourceCtx,
-		DestinationCtx: destCtx,
-	})
-	if err != nil {
-		var e docker.ErrUnauthorizedForCredentials
-		if errors.As(err, &e) {
-			t.Fatalf("Authentication info written by 'registry login' did not work when trying to copy OCI image to private repo (%v)", e)
+	for _, tt := range tests {
+		if tt.whileLoggedIn {
+			e2e.PrivateRepoLogin(t, c.env, e2e.UserProfile, localAuthFileName)
+		} else {
+			e2e.PrivateRepoLogout(t, c.env, e2e.UserProfile, localAuthFileName)
 		}
-		t.Fatalf("Failed to copy %s to %s: %s", source, dest, err)
+
+		profile := e2e.UserProfile
+
+		c.env.RunApptainer(
+			t,
+			e2e.AsSubtest(tt.name),
+			e2e.WithProfile(profile),
+			e2e.WithCommand(tt.cmd),
+			e2e.WithArgs(append(authFileArgs, tt.args...)...),
+			e2e.ExpectExit(tt.expectExit),
+		)
 	}
-
-	privRepoLogout()
-
-	c.env.RunApptainer(
-		t,
-		e2e.AsSubtest("noauth"),
-		e2e.WithProfile(e2e.UserProfile),
-		e2e.WithCommand("pull --no-https"),
-		e2e.WithArgs(dest),
-		e2e.ExpectExit(255),
-	)
-
-	privRepoLogin()
-
-	c.env.RunApptainer(
-		t,
-		e2e.AsSubtest("auth"),
-		e2e.WithProfile(e2e.UserProfile),
-		e2e.WithCommand("pull --no-https"),
-		e2e.WithArgs(dest),
-		e2e.ExpectExit(0),
-	)
 }
 
 // E2ETests is the main func to trigger the test suite
@@ -426,6 +441,6 @@ func E2ETests(env e2e.TestEnv) testhelper.Tests {
 		"registry login push private": np(c.registryLoginPushPrivate),
 		"registry login repeated":     np(c.registryLoginRepeated),
 		"registry list":               np(c.registryList),
-		"registry issue 2226":         np(c.registryIssue2226),
+		"auth":                        np(c.registryAuth),
 	}
 }

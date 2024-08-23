@@ -91,7 +91,7 @@ var RegistryCmd = &cobra.Command{
 var RegistryLoginCmd = &cobra.Command{
 	Args: cobra.ExactArgs(1),
 	Run: func(_ *cobra.Command, args []string) {
-		if err := apptainer.RegistryLogin(remoteConfig, ObtainLoginArgs(args[0])); err != nil {
+		if err := apptainer.RegistryLogin(remoteConfig, ObtainLoginArgs(args[0]), reqAuthFile); err != nil {
 			sylog.Fatalf("%s", err)
 		}
 	},
@@ -114,7 +114,7 @@ var RegistryLogoutCmd = &cobra.Command{
 			name = args[0]
 		}
 
-		if err := apptainer.RegistryLogout(remoteConfig, name); err != nil {
+		if err := apptainer.RegistryLogout(remoteConfig, name, reqAuthFile); err != nil {
 			sylog.Fatalf("%s", err)
 		}
 		sylog.Infof("Logout succeeded")
