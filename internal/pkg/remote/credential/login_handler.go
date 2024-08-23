@@ -90,7 +90,7 @@ func (h *ociHandler) login(u *url.URL, username, password string, insecure bool,
 
 func (h *ociHandler) logout(u *url.URL, reqAuthFile string) error {
 	if u == nil {
-		return fmt.Errorf("URL not provided for logout.")
+		return fmt.Errorf("URL not provided for logout")
 	}
 
 	registry := u.Host + u.Path
