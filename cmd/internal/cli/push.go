@@ -80,6 +80,7 @@ func init() {
 		cmdManager.RegisterFlagForCmd(&dockerHostFlag, PushCmd)
 		cmdManager.RegisterFlagForCmd(&dockerUsernameFlag, PushCmd)
 		cmdManager.RegisterFlagForCmd(&dockerPasswordFlag, PushCmd)
+		cmdManager.RegisterFlagForCmd(&commonAuthFileFlag, PullCmd)
 	})
 }
 
