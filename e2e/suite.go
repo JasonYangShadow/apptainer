@@ -190,7 +190,7 @@ func Run(t *testing.T) {
 
 	// Copy same test image into private location in test registry
 	e2e.PrivateRepoLogin(t, testenv, e2e.UserProfile, "")
-	e2e.CopyImage(t, "docker://busybox:latest", testenv.TestRegistryPrivImage, insecureSource, true)
+	//e2e.CopyImage(t, "docker://busybox:latest", testenv.TestRegistryPrivImage, insecureSource, true)
 	e2e.PrivateRepoLogout(t, testenv, e2e.UserProfile, "")
 
 	// SIF base test path, built on demand by e2e.EnsureImage
