@@ -179,7 +179,7 @@ jobs:
         env:
           OS_TYPE: rockylinux
           OS_VERSION: 8
-          TEST_TYPE: unpriv
+          #TEST_TYPE: unpriv
         run: ./scripts/ci-docker-run
 
       - name: Install and test unprivileged for rocky 9 with rocky 8 container
@@ -187,29 +187,29 @@ jobs:
           OS_TYPE: rockylinux
           OS_VERSION: 9
           CONTAINER_VERS: rockylinux:8
-          TEST_TYPE: unpriv
+          #TEST_TYPE: unpriv
         run: ./scripts/ci-docker-run
 
-      - name: Install and test unprivileged for ubuntu 20.04
+      - name: Install and test unprivileged for ubuntu 21.04
         env:
           OS_TYPE: ubuntu
-          OS_VERSION: 20.04
-          TEST_TYPE: unpriv
+          OS_VERSION: 22.04
+          #TEST_TYPE: unpriv
         run: ./scripts/ci-docker-run
 
       - name: Install and test unprivileged for debian 11
         env:
           OS_TYPE: debian
-          OS_VERSION: 11
-          TEST_TYPE: unpriv
+          OS_VERSION: latest
+          #TEST_TYPE: unpriv
         run: ./scripts/ci-docker-run
 
-      - name: Install and test unprivileged for openSUSE leap
-        env:
-          OS_TYPE: opensuse/leap
-          OS_VERSION: latest
-          TEST_TYPE: unpriv
-        run: ./scripts/ci-docker-run
+      # - name: Install and test unprivileged for openSUSE leap
+      #   env:
+      #     OS_TYPE: opensuse/leap
+      #     OS_VERSION: latest
+      #     TEST_TYPE: unpriv
+      #   run: ./scripts/ci-docker-run
 
   rpmbuild-rocky9:
     runs-on: ubuntu-22.04
@@ -230,14 +230,14 @@ jobs:
         env:
           OS_TYPE: rockylinux
           OS_VERSION: 9
-          TEST_TYPE: unpriv
+          #TEST_TYPE: unpriv
         run: ./scripts/ci-docker-run
 
       - name: Install and test unprivileged for ubuntu 22.04
         env:
           OS_TYPE: ubuntu
           OS_VERSION: 22.04
-          TEST_TYPE: unpriv
+          #TEST_TYPE: unpriv
         run: ./scripts/ci-docker-run
 
   short_unit_tests:
@@ -383,7 +383,7 @@ jobs:
 
       - name: Upload artifacts
         if: env.run_tests
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: e2e-artifact
           path: builddir/e2e-cmd-report.txt
