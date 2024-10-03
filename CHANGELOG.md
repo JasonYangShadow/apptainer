@@ -23,6 +23,9 @@ For older changes see the [archived Singularity change log](https://github.com/a
   by squashfuse_ll.
 - Add automated tests for OpenSUSE Leap and Tumbleweed and Debian Bookworm.
 - Fixed typo in `nvliblist.conf` (`libnvoptix.so.1` -> `libnvoptix.so`)
+- Use user namespace for wrapping of `unsquashfs` when running with
+  `--userns / -u` flag. Fixes temporary sandbox extraction of images in non-root
+  mapped user namespace (e.g. `unshare -c`).
 
 ## Changes for v1.3.x
 
