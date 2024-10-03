@@ -23,6 +23,8 @@ For older changes see the [archived Singularity change log](https://github.com/a
   by squashfuse_ll.
 - Add automated tests for OpenSUSE Leap and Tumbleweed and Debian Bookworm.
 - Fixed typo in `nvliblist.conf` (`libnvoptix.so.1` -> `libnvoptix.so`)
+- Fix storage of credentials for `docker.io` to behave the same as for
+  `index.docker.io`.
 
 ## Changes for v1.3.x
 
