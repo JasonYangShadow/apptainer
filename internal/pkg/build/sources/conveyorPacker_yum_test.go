@@ -23,8 +23,10 @@ import (
 	"github.com/apptainer/apptainer/pkg/build/types/parser"
 )
 
-const yumDef = "../../../../examples/centos/YumDef"
-const dnfDef = "../../../../examples/centos/DnfDef"
+const (
+	yumDef = "../../../../examples/centos/YumDef"
+	dnfDef = "../../../../examples/centos/DnfDef"
+)
 
 func TestYumConveyor(t *testing.T) {
 	// TODO - Centos puts non-amd64 at a different mirror location
