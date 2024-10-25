@@ -55,6 +55,9 @@ For older changes see the [archived Singularity change log](https://github.com/a
   - `allow user ns`, default value is `yes`, when set to `no`, it will disable
     creation of user namespaces. This will prevent execution of containers with
     the `--userns` or `--fakeroot` flags, and unprivileged installations of Apptainer.
+- `%files from` in a definition file will now correctly copy symlinks that point
+  to a target above the destination directory, but inside the destination stage
+  rootfs.
 
 ## Changes for v1.3.x
 
