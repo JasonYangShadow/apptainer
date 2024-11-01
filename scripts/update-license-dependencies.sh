@@ -42,20 +42,16 @@ EOF
 
 while IFS="," read -r dep url license; do
   {
-    if [ -n "${dep}" ]; then
-      echo "## ${dep}"
-      echo ""
-      echo "**License:** ${license}"
-      echo ""
-    fi
+    echo "## ${dep}"
+    echo ""
+    echo "**License:** ${license}"
+    echo ""
   } >>LICENSE_DEPENDENCIES.md
 
   # go-licenses can't work out the web url for non-github projects.
   # Fall back to using the dependency URL as a project URL
   if [ "${url}" = "Unknown" ]; then
-    if [ -n "${dep}" ]; then
-      echo "**Project URL:** <https://${dep}>" >>LICENSE_DEPENDENCIES.md
-    fi
+    echo "**Project URL:** <https://${dep}>" >>LICENSE_DEPENDENCIES.md
   else
     echo "**License URL:** <${url}>" >>LICENSE_DEPENDENCIES.md
   fi
