@@ -3,8 +3,6 @@
 set -e
 set -u
 
-go install github.com/google/go-licenses@v1.0.0
-
 if [ -d "vendor" ]; then
   echo "Please remove vendor directory before running this script"
   exit 255
@@ -23,7 +21,7 @@ exclude="github.com/apptainer/apptainer|github.com/vbauerster/mpb"
 # Ensure a constant sort order
 export LC_ALL=C
 
-go-licenses csv ./... | grep -v -E "${exclude}" | sort -k3,3 -k1,1 -t, > LICENSE_DEPENDENCIES.csv
+$(go env GOROOT)/bin/go run github.com/google/go-licenses@v1.6.0 csv ./... | grep -v -E "${exclude}" | sort -k3,3 -k1,1 -t, > LICENSE_DEPENDENCIES.csv
 
 # Header for the markdown file
 cat <<-'EOF' >LICENSE_DEPENDENCIES.md
@@ -44,16 +42,20 @@ EOF
 
 while IFS="," read -r dep url license; do
   {
-    echo "## ${dep}"
-    echo ""
-    echo "**License:** ${license}"
-    echo ""
+    if [ -n "${dep}" ]; then
+      echo "## ${dep}"
+      echo ""
+      echo "**License:** ${license}"
+      echo ""
+    fi
   } >>LICENSE_DEPENDENCIES.md
 
   # go-licenses can't work out the web url for non-github projects.
   # Fall back to using the dependency URL as a project URL
   if [ "${url}" = "Unknown" ]; then
-    echo "**Project URL:** <https://${dep}>" >>LICENSE_DEPENDENCIES.md
+    if [ -n "${dep}" ]; then
+      echo "**Project URL:** <https://${dep}>" >>LICENSE_DEPENDENCIES.md
+    fi
   else
     echo "**License URL:** <${url}>" >>LICENSE_DEPENDENCIES.md
   fi
