@@ -66,6 +66,12 @@ For older changes see the [archived Singularity change log](https://github.com/a
   rootfs.
 - Fix a regression issue that overwrites source image runscript, environment
   etc. in build from local image.
+- The new `--netns-path` flag takes a path to a network namespace to join when
+  starting a container. The `root` user may join any network namespace. An
+  unprivileged user can only join a network namespace specified in the new
+  `allowed netns paths` directive in `apptainer.conf`, if they are also listed
+  in `allowed net users` / `allowed net groups`. Not currently supported with
+  `--fakeroot`, or in `--oci` mode.
 
 ## Changes for v1.3.x
 
