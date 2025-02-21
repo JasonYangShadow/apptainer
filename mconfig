@@ -3,7 +3,7 @@
 #   Apptainer a Series of LF Projects LLC.
 #   For website terms of use, trademark policy, privacy policy and other
 #   project policies see https://lfprojects.org/policies
-# Copyright (c) 2019, Sylabs Inc. All rights reserved.
+# Copyright (c) 2019-2025, Sylabs Inc. All rights reserved.
 # Copyright (c) 2015-2018, Yannick Cote <yhcote@gmail.com>. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be found
 # in the LICENSE file.
@@ -951,6 +951,11 @@ if [ "$verbose" = 1 ]; then
 	echo "    - verbose: yes"
 else
 	echo "    - verbose: no"
+fi
+if [ "$libsubid" = 0 ]; then
+	echo "    - libsubid support: no"
+else
+	echo "    - libsubid support: yes"
 fi
 echo "      ---"
 echo "    - version: $package_version"

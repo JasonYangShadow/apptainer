@@ -64,7 +64,7 @@ jobs:
       - name: Build Apptainer
         run: |
           git config --global --add safe.directory $(pwd)
-          ./mconfig -v -p /usr/local --with-suid
+          ./mconfig -v -p /usr/local --with-suid --without-libsubid
           make -C ./builddir all
 
   oldgo:
@@ -81,7 +81,7 @@ jobs:
       - name: Build Apptainer
         run: |
           git config --global --add safe.directory $(pwd)
-          ./mconfig -v -p /usr/local --with-suid
+          ./mconfig -v -p /usr/local --with-suid --without-libsubid
           make -C ./builddir all
 
   check_test_corpus:
