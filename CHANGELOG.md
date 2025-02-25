@@ -24,6 +24,8 @@ Changes since 1.4.0-rc.1
   If the mksquashfs version is older, than fallback to the old message:
   "To see mksquashfs output with progress bar enable verbose logging"
 - Complete the previously partial support for the `riscv64` architecture.
+- Revised the libsubid implemenation and removed the `fakerootcallback`
+  functionality.
 
 ## v1.4.0 Release Candidate 1 - \[2025-01-21\]
 
