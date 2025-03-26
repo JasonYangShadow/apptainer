@@ -12,6 +12,7 @@ package ecl
 
 import (
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/apptainer/apptainer/e2e/internal/e2e"
@@ -100,7 +101,7 @@ func (c *ctx) eclConfig(t *testing.T) {
 			name:    "build signed image",
 			command: "build",
 			profile: e2e.UserProfile,
-			args:    []string{signed, e2e.BusyboxSIF(t)},
+			args:    []string{signed, e2e.BusyboxSIF(t, runtime.GOARCH)},
 			exit:    0,
 		},
 		{

@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"runtime"
 	"testing"
 
 	"github.com/apptainer/apptainer/e2e/internal/e2e"
@@ -32,7 +33,7 @@ func (c ctx) issue5426(t *testing.T) {
 		t,
 		e2e.WithProfile(e2e.UserProfile),
 		e2e.WithCommand("build"),
-		e2e.WithArgs("--force", "--sandbox", sandboxDir, e2e.BusyboxSIF(t)),
+		e2e.WithArgs("--force", "--sandbox", sandboxDir, e2e.BusyboxSIF(t, runtime.GOARCH)),
 		e2e.ExpectExit(0),
 	)
 

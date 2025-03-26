@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -36,7 +37,7 @@ const (
 func (c ctx) apptainerEnv(t *testing.T) {
 	e2e.EnsureImage(t, c.env)
 	// Apptainer defines a path by default. See apptainerware/apptainer/etc/init.
-	defaultImage := e2e.BusyboxSIF(t)
+	defaultImage := e2e.BusyboxSIF(t, runtime.GOARCH)
 	// This image sets a custom path.
 	// See e2e/testdata/Apptainer
 	customImage := c.env.ImagePath
@@ -131,7 +132,7 @@ func (c ctx) apptainerEnv(t *testing.T) {
 func (c ctx) apptainerEnvOption(t *testing.T) {
 	e2e.EnsureImage(t, c.env)
 	// Apptainer defines a path by default. See apptainerware/apptainer/etc/init.
-	defaultImage := e2e.BusyboxSIF(t)
+	defaultImage := e2e.BusyboxSIF(t, runtime.GOARCH)
 	// This image sets a custom path.
 	// See e2e/testdata/Apptainer
 	customImage := c.env.ImagePath

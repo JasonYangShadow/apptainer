@@ -16,6 +16,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"text/template"
 
@@ -421,7 +422,7 @@ func (c *imgBuildTests) issue3848(t *testing.T) {
 		From string
 		File string
 	}{
-		From: e2e.BusyboxSIF(t),
+		From: e2e.BusyboxSIF(t, runtime.GOARCH),
 		File: tmpfile,
 	}
 

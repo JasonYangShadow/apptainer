@@ -17,6 +17,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -220,7 +221,7 @@ func (c imgBuildTests) buildFrom(t *testing.T) {
 }
 
 func (c imgBuildTests) nonRootBuild(t *testing.T) {
-	busyboxSIF := e2e.BusyboxSIF(t)
+	busyboxSIF := e2e.BusyboxSIF(t, runtime.GOARCH)
 	tt := []struct {
 		name        string
 		buildSpec   string
@@ -439,7 +440,7 @@ func (c imgBuildTests) badPath(t *testing.T) {
 }
 
 func (c imgBuildTests) buildMultiStageDefinition(t *testing.T) {
-	busyboxSIF := e2e.BusyboxSIF(t)
+	busyboxSIF := e2e.BusyboxSIF(t, runtime.GOARCH)
 	tmpfile, err := e2e.WriteTempFile(c.env.TestDir, "testFile-", testFileContent)
 	if err != nil {
 		log.Fatal(err)
@@ -661,7 +662,7 @@ func (c imgBuildTests) buildMultiStageDefinition(t *testing.T) {
 
 //nolint:maintidx
 func (c imgBuildTests) buildDefinition(t *testing.T) {
-	busyboxSIF := e2e.BusyboxSIF(t)
+	busyboxSIF := e2e.BusyboxSIF(t, runtime.GOARCH)
 	tmpfile, err := e2e.WriteTempFile(c.env.TestDir, "testFile-", testFileContent)
 	if err != nil {
 		log.Fatal(err)
@@ -971,7 +972,7 @@ func (c imgBuildTests) buildDefinition(t *testing.T) {
 
 //nolint:maintidx
 func (c imgBuildTests) buildDefinitionWithBuildArgs(t *testing.T) {
-	busyboxSIF := e2e.BusyboxSIF(t)
+	busyboxSIF := e2e.BusyboxSIF(t, runtime.GOARCH)
 	fileContent := `HOME=/root
 DEMO=demo=with===equals==signs
 `
@@ -1267,7 +1268,7 @@ func (c *imgBuildTests) ensureImageIsGocryptfsEncrypted(t *testing.T, imgPath st
 }
 
 func (c imgBuildTests) buildEncryptPemFile(t *testing.T) {
-	busyboxSIF := e2e.BusyboxSIF(t)
+	busyboxSIF := e2e.BusyboxSIF(t, runtime.GOARCH)
 
 	// Expected results for a successful command execution
 	expectedExitCode := 0
@@ -1339,7 +1340,7 @@ func (c imgBuildTests) buildEncryptPemFile(t *testing.T) {
 // while using a passphrase. Note that it covers both the normal case and when the
 // version of cryptsetup available is not compliant.
 func (c imgBuildTests) buildEncryptPassphrase(t *testing.T) {
-	busyboxSIF := e2e.BusyboxSIF(t)
+	busyboxSIF := e2e.BusyboxSIF(t, runtime.GOARCH)
 
 	// Expected results for a successful command execution
 	expectedExitCode := 0
@@ -1542,7 +1543,7 @@ func (c imgBuildTests) buildWithFingerprint(t *testing.T) {
 		{
 			name:    "build single signed source image",
 			command: "build",
-			args:    []string{singleSigned, e2e.BusyboxSIF(t)},
+			args:    []string{singleSigned, e2e.BusyboxSIF(t, runtime.GOARCH)},
 		},
 		{
 			name:    "build double signed source image",
@@ -2117,7 +2118,7 @@ cat /proc/$$/cmdline
 #!/bin/busybox sh
 cat /proc/$$/cmdline`
 
-	definition = fmt.Sprintf(definition, e2e.BusyboxSIF(t))
+	definition = fmt.Sprintf(definition, e2e.BusyboxSIF(t, runtime.GOARCH))
 
 	defFile := e2e.RawDefFile(t, tmpdir, strings.NewReader(definition))
 	imagePath := filepath.Join(tmpdir, "image-shebang")
@@ -2165,7 +2166,7 @@ func (c imgBuildTests) testGocryptfsSIFBuild(t *testing.T) {
 	imgcli := fmt.Sprintf("%s/imgcli.sif", tmpDir)
 	pubKey, _ := e2e.GeneratePemFiles(t, tmpDir)
 	expectedExitCode := 0
-	busybox := e2e.BusyboxSIF(t)
+	busybox := e2e.BusyboxSIF(t, runtime.GOARCH)
 	cmdArgs := []string{"--pem-path", pubKey, imgcli, busybox}
 	c.env.RunApptainer(
 		t,

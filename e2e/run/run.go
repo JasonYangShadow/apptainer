@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -73,7 +74,7 @@ func (c ctx) testRunPEMEncrypted(t *testing.T) {
 	defer cleanup(t)
 
 	imgPath := filepath.Join(tempDir, "encrypted_cmdline_pem-path.sif")
-	cmdArgs := []string{"--encrypt", "--pem-path", pemPubFile, imgPath, e2e.BusyboxSIF(t)}
+	cmdArgs := []string{"--encrypt", "--pem-path", pemPubFile, imgPath, e2e.BusyboxSIF(t, runtime.GOARCH)}
 	c.env.RunApptainer(
 		t,
 		e2e.WithProfile(e2e.RootProfile),
@@ -123,7 +124,7 @@ func (c ctx) testRunPassphraseEncrypted(t *testing.T) {
 	defer cleanup(t)
 
 	imgPath := filepath.Join(tempDir, "encrypted_cmdline_passphrase.sif")
-	cmdArgs := []string{"--encrypt", imgPath, e2e.BusyboxSIF(t)}
+	cmdArgs := []string{"--encrypt", imgPath, e2e.BusyboxSIF(t, runtime.GOARCH)}
 	c.env.RunApptainer(
 		t,
 		e2e.WithProfile(e2e.RootProfile),
@@ -422,7 +423,7 @@ func (c ctx) testExecGocryptfsEncryptedSIF(t *testing.T) {
 	defer cleanup(t)
 
 	imgPath := filepath.Join(tempDir, "encrypted_pem.sif")
-	cmdArgs := []string{"--pem-path", pemPubFile, imgPath, e2e.BusyboxSIF(t)}
+	cmdArgs := []string{"--pem-path", pemPubFile, imgPath, e2e.BusyboxSIF(t, runtime.GOARCH)}
 	c.env.RunApptainer(
 		t,
 		e2e.WithProfile(e2e.UserProfile),
@@ -458,7 +459,7 @@ func (c ctx) testExecGocryptfsEncryptedSIF(t *testing.T) {
 	)
 
 	imgPassPath := filepath.Join(tempDir, "encrypted_pass.sif")
-	cmdArgs = []string{"--userns", "--passphrase", imgPassPath, e2e.BusyboxSIF(t)}
+	cmdArgs = []string{"--userns", "--passphrase", imgPassPath, e2e.BusyboxSIF(t, runtime.GOARCH)}
 	c.env.RunApptainer(
 		t,
 		e2e.WithProfile(e2e.UserProfile),
@@ -512,6 +513,47 @@ func (c ctx) testExecGocryptfsEncryptedSIF(t *testing.T) {
 	)
 }
 
+func (c ctx) testMultiArchRun(t *testing.T) {
+	imgPath := e2e.BusyboxSIF(t, "amd64")
+	cmdArgs := []string{"--cleanenv", imgPath, "uname", "-m"}
+	c.env.RunApptainer(
+		t,
+		e2e.WithProfile(e2e.UserProfile),
+		e2e.WithCommand("run"),
+		e2e.WithArgs(cmdArgs...),
+		e2e.ExpectExit(
+			0,
+			e2e.ExpectOutput(e2e.ExactMatch, "x86_64"),
+		),
+	)
+
+	imgPath = e2e.BusyboxSIF(t, "arm64")
+	cmdArgs = []string{"--cleanenv", imgPath, "uname", "-m"}
+	c.env.RunApptainer(
+		t,
+		e2e.WithProfile(e2e.UserProfile),
+		e2e.WithCommand("run"),
+		e2e.WithArgs(cmdArgs...),
+		e2e.ExpectExit(
+			0,
+			e2e.ExpectOutput(e2e.ExactMatch, "aarch64"),
+		),
+	)
+
+	imgPath = e2e.BusyboxSIF(t, "ppc64le")
+	cmdArgs = []string{"--cleanenv", imgPath, "uname", "-m"}
+	c.env.RunApptainer(
+		t,
+		e2e.WithProfile(e2e.UserProfile),
+		e2e.WithCommand("run"),
+		e2e.WithArgs(cmdArgs...),
+		e2e.ExpectExit(
+			0,
+			e2e.ExpectOutput(e2e.ExactMatch, "ppc64le"),
+		),
+	)
+}
+
 // E2ETests is the main func to trigger the test suite
 func E2ETests(env e2e.TestEnv) testhelper.Tests {
 	c := ctx{
@@ -528,5 +570,6 @@ func E2ETests(env e2e.TestEnv) testhelper.Tests {
 		"fuse ext3 mount":                     c.testFuseExt3Mount,
 		"add package with fakeroot and tmpfs": c.testAddPackageWithFakerootAndTmpfs,
 		"gocryptfs sif execution":             c.testExecGocryptfsEncryptedSIF,
+		"test running on multiple archs":      c.testMultiArchRun,
 	}
 }

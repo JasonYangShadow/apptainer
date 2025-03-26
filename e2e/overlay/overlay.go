@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/apptainer/apptainer/internal/pkg/test/tool/require"
@@ -25,7 +26,7 @@ func (c ctx) testOverlayCreate(t *testing.T) {
 	require.Filesystem(t, "overlay")
 	require.MkfsExt3(t)
 	e2e.EnsureImage(t, c.env)
-	busyboxSIF := e2e.BusyboxSIF(t)
+	busyboxSIF := e2e.BusyboxSIF(t, runtime.GOARCH)
 
 	tmpDir, cleanup := e2e.MakeTempDir(t, c.env.TestDir, "overlay", "")
 	defer cleanup(t)
