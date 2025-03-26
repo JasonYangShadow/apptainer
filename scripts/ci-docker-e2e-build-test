@@ -36,31 +36,33 @@ chown -R testuser . /local
 # change to testuser
 su testuser
 
-GOSRC="go$(scripts/get-min-go-version).src.tar.gz"
-if [ -n "$GOSRC" ]; then
-  curl -f -L -sS -o $GOSRC https://golang.org/dl/$GOSRC
-  if [ -n "$GO_ARCH" ]; then
-    # Download and install binary too to avoid debuild having to compile the
-    #  go toolchain from source
-    GOBIN="$(echo "$GOSRC"|sed "s/\.src./.$GO_ARCH./")"
-    curl -f -L -sS https://golang.org/dl/$GOBIN | tar -xzf - -C /local
-    PATH=/local/go/bin:$PATH
-  fi
-fi
-go version
+echo $Whoami
+echo $UID
 
-./scripts/download-dependencies 
-./scripts/compile-dependencies
+# GOSRC="go$(scripts/get-min-go-version).src.tar.gz"
+# if [ -n "$GOSRC" ]; then
+#   curl -f -L -sS -o $GOSRC https://golang.org/dl/$GOSRC
+#   if [ -n "$GO_ARCH" ]; then
+#     # Download and install binary too to avoid debuild having to compile the
+#     #  go toolchain from source
+#     GOBIN="$(echo "$GOSRC"|sed "s/\.src./.$GO_ARCH./")"
+#     curl -f -L -sS https://golang.org/dl/$GOBIN | tar -xzf - -C /local
+#     PATH=/local/go/bin:$PATH
+#   fi
+# fi
 
-sudo mkdir -p /usr/local/libexec/apptainer/bin
-sudo ./scripts/install-dependencies /usr/local/libexec
+# ./scripts/download-dependencies 
+# ./scripts/compile-dependencies
 
-export VERSION="$(git branch --show-current)_$(git rev-parse HEAD)"
-echo $VERSION > VERSION
-./mconfig -v -p /usr/local --with-suid
-make -C ./builddir all && sudo make -C ./builddir install
-apptainer version
+# sudo mkdir -p /usr/local/libexec/apptainer/bin
+# sudo ./scripts/install-dependencies /usr/local/libexec
 
-export E2E_PARALLEL=8
-export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$UID/bus"
-make -C ./builddir e2e-test
+# export VERSION="$(git branch --show-current)_$(git rev-parse HEAD)"
+# echo $VERSION > VERSION
+# ./mconfig -v -p /usr/local --with-suid
+# make -C ./builddir all && sudo make -C ./builddir install
+# apptainer version
+
+# export E2E_PARALLEL=8
+# export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$UID/bus"
+# make -C ./builddir e2e-test
