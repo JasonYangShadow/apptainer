@@ -19,7 +19,7 @@ docker pull "$DOCKER_HUB_URI"
 DOCKER_CONTAINER_NAME="test_${OS_TYPE##*/}_${OS_VERSION//./_}"
 CONTAINER_VERS="${CONTAINER_VERS:-$DOCKER_HUB_URI}"
 
-docker run --network=host -v "$(pwd):/build:rw" \
+docker run --privileged --network=host -v "$(pwd):/build:rw" \
   -e OS_TYPE=$OS_TYPE -e GO_ARCH=$GO_ARCH -e CONTAINER_VERS="$CONTAINER_VERS" \
   -e HIDE_DIST=$HIDE_DIST -e INS_OPTS="$INS_OPTS" \
   --name "$DOCKER_CONTAINER_NAME" "$DOCKER_HUB_URI" /bin/bash -exc \

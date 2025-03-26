@@ -33,8 +33,8 @@ echo "Defaults:testuser env_keep=DOCKER_HOST" >>/etc/sudoers
 echo "testuser ALL=(ALL) NOPASSWD: ALL" >>/etc/sudoers
 mkdir -p /local
 chown -R testuser . /local
-# change to testuser
 
+# change to testuser
 su testuser -c '
   set -x
   set -e
@@ -56,7 +56,7 @@ su testuser -c '
   sudo mkdir -p /usr/local/libexec/apptainer/bin
   sudo ./scripts/install-dependencies /usr/local/libexec
 
-  export VERSION="$(git branch --show-current)_$(git rev-parse HEAD)"
+  export VERSION="$(git branch --show-current)-$(git rev-parse HEAD)"
   echo $VERSION > VERSION
   ./mconfig -v -p /usr/local --with-suid
   make -C ./builddir all && sudo make -C ./builddir install
