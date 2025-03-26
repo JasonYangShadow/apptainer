@@ -1,0 +1,66 @@
+#!/bin/bash -ex
+# Copyright (c) Contributors to the Apptainer project, established as
+#   Apptainer a Series of LF Projects LLC.
+#   For website terms of use, trademark policy, privacy policy and other
+#   project policies see https://lfprojects.org/policies
+
+# this script runs as root under docker --privileged
+
+apt-get update
+export DEBIAN_FRONTEND=noninteractive
+
+apt-get install -y \
+    devscripts \
+    debhelper \
+    dh-autoreconf \
+    help2man \
+    libarchive-dev \
+    libssl-dev \
+    uuid-dev \
+    golang-go \
+    dh-apparmor
+
+# for squashfs-tools and squashfuse_ll build
+apt-get install -y autoconf automake libtool pkg-config libfuse3-dev \
+    zlib1g-dev liblzo2-dev liblz4-dev liblzma-dev libzstd-dev libsubid-dev
+
+# switch to an unprivileged user with sudo privileges
+# enable systemd for further test
+apt-get install -y sudo
+useradd -u 1001 --create-home -s /bin/bash testuser
+
+echo "Defaults:testuser env_keep=DOCKER_HOST" >>/etc/sudoers
+echo "testuser ALL=(ALL) NOPASSWD: ALL" >>/etc/sudoers
+mkdir -p /local
+chown -R testuser . /local
+# change to testuser
+su testuser
+
+GOSRC="go$(scripts/get-min-go-version).src.tar.gz"
+if [ -n "$GOSRC" ]; then
+  curl -f -L -sS -o $GOSRC https://golang.org/dl/$GOSRC
+  if [ -n "$GO_ARCH" ]; then
+    # Download and install binary too to avoid debuild having to compile the
+    #  go toolchain from source
+    GOBIN="$(echo "$GOSRC"|sed "s/\.src./.$GO_ARCH./")"
+    curl -f -L -sS https://golang.org/dl/$GOBIN | tar -xzf - -C /local
+    PATH=/local/go/bin:$PATH
+  fi
+fi
+go version
+
+./scripts/download-dependencies 
+./scripts/compile-dependencies
+
+sudo mkdir -p /usr/local/libexec/apptainer/bin
+sudo ./scripts/install-dependencies /usr/local/libexec
+
+export VERSION="$(git branch --show-current)_$(git rev-parse HEAD)"
+echo $VERSION > VERSION
+./mconfig -v -p /usr/local --with-suid
+make -C ./builddir all && sudo make -C ./builddir install
+apptainer version
+
+export E2E_PARALLEL=8
+export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$UID/bus"
+make -C ./builddir e2e-test

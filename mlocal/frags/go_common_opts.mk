@@ -17,7 +17,7 @@ GO_RACE := -race
 endif
 GO_MODFLAGS := $(if $(wildcard $(SOURCEDIR)/vendor/modules.txt),-mod=vendor,-mod=readonly)
 GO_MODFILES := $(SOURCEDIR)/go.mod $(SOURCEDIR)/go.sum
-GOFLAGS := $(GO_MODFLAGS) -trimpath
+GOFLAGS := $(GO_MODFLAGS) -trimpath -buildvcs=false
 GOPROXY := https://proxy.golang.org
 
 export GOFLAGS GO111MODULE GOPROXY
