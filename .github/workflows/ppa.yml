@@ -45,23 +45,37 @@ jobs:
           ./scripts/ci-docker-run
           cp *.tar.gz ..
           cd ..
-      
-      - name: Generate PPA required files
-       # if: env.do_release
-        env:
-          OS_TYPE: debian
-          OS_VERSION: 11
-          GO_ARCH: linux-amd64
-          TEST_TYPE: ppa
-        run: |
-          # Make a new copy of the source files for this build
-          set -x
+
           tar xf apptainer-*.tar.gz
-          FOLDER=`basename apptainer-*.tar.gz .tar.gz`
-          cd "$FOLDER"
-          VERSION="$(./scripts/get-version)"
-          export MAJOR_VERSION=${VERSION%+*}
-          cp ../apptainer-*.tar.gz apptainer_${MAJOR_VERSION}.orig.tar.gz
-          ./scripts/ci-docker-run
-          cp *.deb ..
-          cd ..
+          cd `basename apptainer-*.tar.gz .tar.gz`
+
+      - name: Publish PPA
+        uses: yuezk/publish-ppa-package@v2
+        with:
+            repository: "jasonyangshadow/test"
+            gpg_private_key: ${{ secrets.PPA_GPG_PRIVATE_KEY }}
+            gpg_passphrase: ${{ secrets.PPA_GPG_PASSPHRASE }}
+            tarball: ../apptainer-*.tar.gz
+            debian_dir: dist/debian/
+            deb_email: "test@tset.com"
+            deb_fullname: "test"
+      
+      # - name: Generate PPA required files
+      #  # if: env.do_release
+      #   env:
+      #     OS_TYPE: debian
+      #     OS_VERSION: 11
+      #     GO_ARCH: linux-amd64
+      #     TEST_TYPE: ppa
+      #   run: |
+      #     # Make a new copy of the source files for this build
+      #     set -x
+      #     tar xf apptainer-*.tar.gz
+      #     FOLDER=`basename apptainer-*.tar.gz .tar.gz`
+      #     cd "$FOLDER"
+      #     VERSION="$(./scripts/get-version)"
+      #     export MAJOR_VERSION=${VERSION%+*}
+      #     cp ../apptainer-*.tar.gz apptainer_${MAJOR_VERSION}.orig.tar.gz
+      #     ./scripts/ci-docker-run
+      #     cp *.deb ..
+      #     cd ..

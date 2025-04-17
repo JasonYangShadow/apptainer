@@ -85,7 +85,6 @@ su testuser -c '
   ./scripts/download-dependencies debian
   sed -i -e 's/0.1.0-1/"$MAJOR_VERSION"-1/g' debian/changelog
   mv apptainer_*.orig.tar.gz ../
-  ls -al debian/
 
   export DEB_FULLNAME="'"${DEB_FULLNAME:-CI Test}"'"
   export DEBEMAIL="'${DEBEMAIL:-citest@example.com}'"
