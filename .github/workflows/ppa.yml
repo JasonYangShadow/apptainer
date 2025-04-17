@@ -47,7 +47,8 @@ jobs:
           cd ..
 
           tar xf apptainer-*.tar.gz
-          cd `basename apptainer-*.tar.gz .tar.gz`
+          NAME=`basename apptainer-*.tar.gz .tar.gz`
+          echo "NAME=$NAME"  >> $GITHUB_ENV
 
       - name: Publish PPA
         uses: yuezk/publish-ppa-package@v2
@@ -55,8 +56,8 @@ jobs:
             repository: "jasonyangshadow/test"
             gpg_private_key: ${{ secrets.PPA_GPG_PRIVATE_KEY }}
             gpg_passphrase: ${{ secrets.PPA_GPG_PASSPHRASE }}
-            tarball: ../apptainer-*.tar.gz
-            debian_dir: dist/debian/
+            tarball: ${{ env.NAME }}.tar.gz
+            debian_dir: ${{ env.NAME }}/dist/debian
             deb_email: "test@tset.com"
             deb_fullname: "test"
       
