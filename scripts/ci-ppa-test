@@ -1,0 +1,94 @@
+#!/bin/bash -ex
+# Copyright (c) Contributors to the Apptainer project, established as
+#   Apptainer a Series of LF Projects LLC.
+#   For website terms of use, trademark policy, privacy policy and other
+#   project policies see https://lfprojects.org/policies
+
+# this script runs as root under docker --privileged
+
+OS_MAJOR=$(grep ^VERSION_ID /etc/os-release | cut -d'=' -f2 | sed 's/\"//gI' | cut -d'.' -f1)
+OS_NAME=$(grep ^NAME /etc/os-release | cut -d '=' -f2 | sed 's/\"//gI')
+OS_VERSION=$(grep ^VERSION_ID /etc/os-release | cut -d'=' -f2 | sed 's/\"//gI')
+
+# install dependencies
+apt-get update
+export DEBIAN_FRONTEND=noninteractive
+apt-get install -y \
+    build-essential \
+    libseccomp-dev \
+    uidmap \
+    fakeroot \
+    cryptsetup \
+    tzdata \
+    curl wget git
+
+apt-get install -y \
+    devscripts \
+    debhelper \
+    dh-autoreconf \
+    help2man \
+    libarchive-dev \
+    libssl-dev \
+    uuid-dev \
+    golang-go \
+    dh-apparmor
+
+# for squashfs-tools and squashfuse_ll build
+apt-get install -y autoconf automake libtool pkg-config libfuse3-dev \
+    zlib1g-dev liblzo2-dev liblz4-dev liblzma-dev libzstd-dev
+
+# for libsubid support in Ubuntu 24.04+ or Debian 12+
+if { [ $OS_NAME = "Ubuntu" ] && [ $OS_MAJOR -ge 24 ]; } || \
+	{ [ $OS_NAME = "Debian" ] && [ $OS_MAJOR -ge 12 ]; }; then
+    apt-get install -y libsubid-dev
+fi
+
+# move source code down a level because debuild writes into parent dir
+shopt -s extglob
+mkdir src
+mv .??* !(src) src
+
+# switch to an unprivileged user with sudo privileges
+apt-get install -y sudo
+
+if [[ $OS_NAME = "Ubuntu" ]] && { [ $OS_MAJOR -gt 23 ] || [[ $OS_VERSION = "23.10" ]]; }; then
+# uid 1000 is occupied by user 'ubuntu' in ubuntu 24.04, here using a different uid = 1001
+    useradd -u 1001 --create-home -s /bin/bash testuser
+else
+    useradd -u 1000 --create-home -s /bin/bash testuser
+fi
+
+echo "Defaults:testuser env_keep=DOCKER_HOST" >>/etc/sudoers
+echo "testuser ALL=(ALL) NOPASSWD: ALL" >>/etc/sudoers
+mkdir -p /local
+chown -R testuser . /local
+
+cd src
+
+# Be careful not to use unescaped single quotes in these commands
+su testuser -c '
+  set -x
+  set -e
+  cp -r dist/debian .
+  GOSRC="go$(scripts/get-min-go-version).src.tar.gz"
+  if [ -n "$GOSRC" ]; then
+    curl -f -L -sS -o debian/$GOSRC https://golang.org/dl/$GOSRC
+    if [ -n "'$GO_ARCH'" ]; then
+      # Download and install binary too to avoid debuild having to compile the
+      #  go toolchain from source
+      GOBIN="$(echo "$GOSRC"|sed "s/\.src./.'$GO_ARCH'./")"
+      curl -f -L -sS https://golang.org/dl/$GOBIN | tar -xzf - -C /local
+      PATH=/local/go/bin:$PATH
+    fi
+  fi
+  go version
+  ./scripts/download-dependencies debian
+  sed -i -e 's/0.1.0-1/"$MAJOR_VERSION"-1/g' debian/changelog
+  mv apptainer_*.orig.tar.gz ../
+  ls -al debian/
+
+  export DEB_FULLNAME="'"${DEB_FULLNAME:-CI Test}"'"
+  export DEBEMAIL="'${DEBEMAIL:-citest@example.com}'"
+  debuild --prepend-path $PATH --build=binary,source --no-sign --lintian-opts --display-info --show-overrides
+  ls -al ../
+'
