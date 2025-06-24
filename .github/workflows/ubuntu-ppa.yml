@@ -7,6 +7,8 @@ on:
         type: string
         description: 'apptaienr tag version'
         required: true
+        default: 'v1.4.1'
+  push:
 
 jobs:
   ubuntu_ppa_release:
@@ -32,6 +34,7 @@ jobs:
           echo "do_release=true" >> $GITHUB_ENV
           echo "git_tag=1.4.1" >> $GITHUB_ENV
           echo "${{ inputs.tag }}"
+
       - name: Build and push to Ubuntu PPA
         if: env.do_release
         env:
