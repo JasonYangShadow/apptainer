@@ -7,7 +7,6 @@ on:
         type: string
         description: 'apptaienr tag version'
         required: true
-        default: 'v1.4.1'
   push:
 
 jobs:
