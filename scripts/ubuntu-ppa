@@ -60,4 +60,4 @@ sudo chown "$USER:$USER" ..
 find . -maxdepth 1 -type f -exec sudo chown -R "$USER:$USER" {} \;
 sed -i "s/Changed-By: Gregory M\. Kurtzer <gmkurtzer@gmail\.com>/Changed-By: Xu Yang <jasonyangshadow@gmail\.com>/" "apptainer_${BUILD_VERSION}_source.changes"
 debsign -p "gpg --pinentry-mode loopback --passphrase $GPG_PASSPHRASE" -S -k FECD51E916A94E226507325F20DCFCC7C2389D6B apptainer_${BUILD_VERSION}_source.changes
-dput -f -U ppa:jasonyangshdaow/apptainer "apptainer_${BUILD_VERSION}_source.changes" 
+dput -f -U ppa:jasonyangshadow/unofficial-apptainer "apptainer_${BUILD_VERSION}_source.changes" 
