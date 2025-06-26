@@ -51,7 +51,8 @@ sed -i "s/unstable/$OS_NAME/g" dist/debian/changelog
 sed -i "s/Placeholder/rebuild for $OS_NAME/g" dist/debian/changelog
 
 sed -i '82,83d' dist/debian/rules
-sed -i '81c \    \    \    tar -xf $$HERE/debian/go$(MINGO_VERSION).$(GO_ARCH).tar.gz; \\' dist/debian/rules
+sed -i "81c \ \ \ \ \ \ \ \ \ \ \ \ tar -xf \$\$HERE/debian/go\$(MINGO_VERSION).\$(GO_ARCH).tar.gz; \\\\" dist/debian/rules
+# sed -i '81c \    \    \    tar -xf $$HERE/debian/go$(MINGO_VERSION).$(GO_ARCH).tar.gz; \\' dist/debian/rules
 sed -i '31i GOMODCACHE = $${TMPDIR:-/tmp}/appdebgo/modcache' dist/debian/rules
 sed -i '9i GO_ARCH := linux-$(shell dpkg --print-architecture)' dist/debian/rules
 sed -i 's/GOCACHE=\$(GOCACHE)/GOCACHE=\$(GOCACHE) GOMODCACHE=\$(GOMODCACHE)/g' dist/debian/rules
