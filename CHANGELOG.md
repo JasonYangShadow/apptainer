@@ -33,6 +33,7 @@ For older changes see the [archived Singularity change log](https://github.com/a
   a HTTP gateway (similar to the existing support for IPFS in the `curl` tool).
   The location of the address can set in the `IPFS_GATEWAY` environment variable,
   any local gateway will be picked up automatically (e.g. `http://127.0.0.1:8080`)
+- Add support for building and publishing Apptainer for Ubuntu 25.04.
 
 ## v1.4.x changes
 
