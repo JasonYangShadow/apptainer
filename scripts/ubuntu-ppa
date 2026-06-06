@@ -51,11 +51,19 @@ sed -i "s/0.1.0-1/$BUILD_VERSION/g" dist/debian/changelog
 sed -i "s/unstable/$OS_NAME/g" dist/debian/changelog
 sed -i "s/Placeholder/rebuild for $OS_NAME/g" dist/debian/changelog
 
-sed -i '82,83d' dist/debian/rules
-sed -i "81c \ \ \ \ \ \ \ \ \ \ \ \ tar -xf \$\$HERE/debian/go\$(MINGO_VERSION).\$(GO_ARCH).tar.gz; \\\\" dist/debian/rules
-# sed -i '81c \    \    \    tar -xf $$HERE/debian/go$(MINGO_VERSION).$(GO_ARCH).tar.gz; \\' dist/debian/rules
-sed -i '31i GOMODCACHE = $${TMPDIR:-/tmp}/appdebgo/modcache' dist/debian/rules
-sed -i '9i GO_ARCH := linux-$(shell dpkg --print-architecture)' dist/debian/rules
+# Replace go source compilation with binary extraction
+# Remove the "cd go/src; ./make.bash;" lines that compile go from source
+sed -i '/cd go\/src;/,/\.\/make\.bash;/d' dist/debian/rules
+# Change the tar extraction to use binary tarball instead of source
+sed -i 's/tar -xf \$\$HERE\/debian\/go\$(MINGO_VERSION)\.src\.tar\.gz;/tar -xf $$HERE\/debian\/go$(MINGO_VERSION).$(GO_ARCH).tar.gz;/' dist/debian/rules
+
+# Add GO_ARCH variable after OS_VERSION line
+sed -i '/^OS_VERSION :=/a GO_ARCH := linux-$(shell dpkg --print-architecture)' dist/debian/rules
+
+# Add GOMODCACHE variable after GOCACHE line  
+sed -i '/^GOCACHE = /a GOMODCACHE = $${TMPDIR:-/tmp}/appdebgo/modcache' dist/debian/rules
+
+# Update GOCACHE usage to include GOMODCACHE
 sed -i 's/GOCACHE=\$(GOCACHE)/GOCACHE=\$(GOCACHE) GOMODCACHE=\$(GOMODCACHE)/g' dist/debian/rules
 
 # real build

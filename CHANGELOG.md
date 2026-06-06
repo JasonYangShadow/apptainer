@@ -29,6 +29,7 @@ Changes since 1.5.x
   Only the images and tags are listed, descriptions are not searched.
 - Allow deleting images from oras registries, in addition to library.
   Not all registries support deleting images and manifests, though.
+- Replace line-based edits with pattern matching in scripts/ubuntu-ppa file.
 
 ## v1.5.x changes
 
